@@ -1,5 +1,20 @@
-opencv-python>=4.8.0
-numpy>=1.24.0
-scipy>=1.10.0
+# CamKit3D Requirements
+# Multi-camera recording, 2D pose estimation, 3D triangulation, animation
+
+# Core dependencies
+numpy>=1.21.0
+opencv-python>=4.5.0
+scipy>=1.7.0
+matplotlib>=3.4.0
+
+# Video processing
 ffmpeg-python>=0.2.0
-matplotlib>=3.7.0
+
+# 2D Pose estimation
+mediapipe>=0.10.0
+
+# Configuration files
+toml>=0.10.0
+
+# Progress bars
+tqdm>=4.60.0

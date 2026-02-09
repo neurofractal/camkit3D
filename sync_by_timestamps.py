@@ -223,10 +223,10 @@ def synchronize_videos_to_ideal_fps(
     # Open all video writers
     writers = {}
     output_paths = {}
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Changed from MJPG to mp4v for MP4 output
     
     for cam_id in camera_ids:
-        output_path = out_dir / f"camera_{cam_id}_synchronized.avi"
+        output_path = out_dir / f"camera_{cam_id}_synchronized.mp4"  # Changed from .avi to .mp4
         writer = cv2.VideoWriter(
             str(output_path),
             fourcc,

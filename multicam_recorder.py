@@ -29,7 +29,7 @@ class CameraThread(threading.Thread):
         self.fps = fps
         
         self.cap = None
-        self.frame_queue = queue.Queue(maxsize=60)
+        self.frame_queue = queue.Queue(maxsize=3)  # Small queue - we always grab latest
         self.running = False
         self.recording = False
         self.is_connected = False
@@ -40,6 +40,13 @@ class CameraThread(threading.Thread):
         self.timestamps = []
         self._lock = threading.Lock()  # Thread-safe operations
         self._stop_event = threading.Event()  # Clean shutdown signal
+        
+        # Keep last valid frame to avoid black flashes
+        self.last_frame = None
+        self.last_timestamp = None
+        
+        # Camera name
+        self.camera_name = None
         
     def connect(self) -> bool:
         """Connect to the camera"""
@@ -55,6 +62,9 @@ class CameraThread(threading.Thread):
                 logger.error(f"Failed to open camera {self.camera_id}")
                 return False
             
+            # Try to get camera name
+            self._detect_camera_name()
+            
             # Set camera properties
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
@@ -66,7 +76,11 @@ class CameraThread(threading.Thread):
             actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             actual_fps = int(self.cap.get(cv2.CAP_PROP_FPS))
             
-            logger.info(f"Camera {self.camera_id} connected: {actual_width}x{actual_height} @ {actual_fps}fps")
+            camera_info = f"Camera {self.camera_id}"
+            if self.camera_name:
+                camera_info += f" ({self.camera_name})"
+            camera_info += f": {actual_width}x{actual_height} @ {actual_fps}fps"
+            logger.info(camera_info)
             
             self.is_connected = True
             return True
@@ -79,6 +93,31 @@ class CameraThread(threading.Thread):
                 except:
                     pass
             return False
+    
+    def _detect_camera_name(self):
+        """Try to detect camera name (Windows only)"""
+        try:
+            import platform
+            if platform.system() == 'Windows':
+                import subprocess
+                # Use Windows PowerShell to get camera names
+                result = subprocess.run(
+                    ['powershell', '-Command', 
+                     'Get-PnpDevice -Class Camera | Select-Object FriendlyName | Format-Table -HideTableHeaders'],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                if result.returncode == 0:
+                    lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+                    if self.camera_id < len(lines):
+                        self.camera_name = lines[self.camera_id]
+                        return
+        except Exception as e:
+            logger.debug(f"Could not detect camera name: {e}")
+        
+        # Fallback: generic name
+        self.camera_name = f"Camera {self.camera_id}"
     
     def start_recording(self, output_path: Path) -> bool:
         """Start recording to file"""
@@ -215,11 +254,26 @@ class CameraThread(threading.Thread):
                 time.sleep(0.1)
     
     def get_frame(self) -> Optional[Tuple[np.ndarray, float]]:
-        """Get the latest frame (non-blocking)"""
+        """Get the latest frame (non-blocking) - always returns most recent"""
+        latest_frame = None
+        
+        # Clear the queue and get the most recent frame
         try:
-            return self.frame_queue.get_nowait()
+            while True:
+                latest_frame = self.frame_queue.get_nowait()
         except queue.Empty:
-            return None
+            pass
+        
+        # If we got a new frame, update last_frame cache
+        if latest_frame is not None:
+            self.last_frame, self.last_timestamp = latest_frame
+            return latest_frame
+        
+        # If queue was empty, return the last valid frame
+        if self.last_frame is not None:
+            return (self.last_frame, self.last_timestamp)
+        
+        return None
     
     def stop(self):
         """Stop the camera thread - ROBUST CLEANUP"""
@@ -486,33 +540,216 @@ class MultiCameraRecorder:
         
         logger.info("All cameras disconnected successfully")
     
-    def preview_cameras(self, duration: float = 5.0):
+    def preview_cameras(self, duration: float = 5.0, preview_scale: float = 0.5, target_fps: int = 15):
         """
-        Show preview windows for all cameras
+        Show preview in combined grid view with smooth playback
         
         Args:
             duration: Preview duration in seconds
+            preview_scale: Scale factor for preview (0.5 = half size, faster)
+            target_fps: Target display FPS (15 fps recommended for smooth preview)
         """
         if not self.cameras:
             logger.error("No cameras connected!")
             return
+
+        num_cameras = len(self.cameras)
         
-        logger.info(f"Showing preview for {duration}s...")
+        # Camera symbols (ASCII art style that OpenCV can display)
+        camera_symbols = ["[1]", "[2]", "[3]", "[4]", "[5]", "[6]", "[7]", "[8]", "[9]"]
+        camera_colors = [
+            (0, 255, 255),   # Cyan
+            (255, 128, 0),   # Orange
+            (128, 255, 0),   # Green-yellow
+            (255, 0, 255),   # Magenta
+            (0, 255, 128),   # Aqua
+            (255, 255, 0),   # Yellow
+            (128, 0, 255),   # Purple
+            (255, 128, 255), # Pink
+            (0, 128, 255),   # Light blue
+        ]
+
+        # Calculate scaled dimensions
+        preview_width = int(self.width * preview_scale)
+        preview_height = int(self.height * preview_scale)
+
+        # Calculate grid layout
+        if num_cameras == 1:
+            grid_rows, grid_cols = 1, 1
+        elif num_cameras == 2:
+            grid_rows, grid_cols = 1, 2
+        elif num_cameras == 3:
+            grid_rows, grid_cols = 2, 2  # 2x2 with one empty
+        elif num_cameras == 4:
+            grid_rows, grid_cols = 2, 2
+        elif num_cameras <= 6:
+            grid_rows, grid_cols = 2, 3
+        elif num_cameras <= 9:
+            grid_rows, grid_cols = 3, 3
+        else:
+            grid_rows, grid_cols = 4, 4
+
+        logger.info(f"Showing preview for {duration}s at ~{target_fps}fps (press 'q' to quit)...")
+        logger.info(f"Preview resolution: {preview_width}x{preview_height} ({int(preview_scale*100)}% of original)")
+        
         start_time = time.time()
+        frame_interval = 1.0 / target_fps
+        last_frame_time = time.time()
         
+        # FPS tracking for each camera (actual camera FPS, not display FPS)
+        fps_trackers = {cam_id: {'last_time': time.time(), 'frame_count': 0, 'fps': 0.0} 
+                       for cam_id in self.cameras.keys()}
+
         try:
             while time.time() - start_time < duration:
-                for cam_id, camera in self.cameras.items():
-                    try:
-                        frame_data = camera.get_frame()
-                        if frame_data:
-                            frame, timestamp = frame_data
-                            cv2.imshow(f"Camera {cam_id}", frame)
-                    except Exception as e:
-                        logger.error(f"Error displaying camera {cam_id}: {e}")
+                current_time = time.time()
                 
+                # Frame rate limiting for smooth display
+                if current_time - last_frame_time < frame_interval:
+                    time.sleep(0.001)  # Small sleep to prevent busy waiting
+                    continue
+                
+                last_frame_time = current_time
+                grid_frames = []
+                
+                for idx, cam_id in enumerate(sorted(self.cameras.keys())):
+                    camera = self.cameras[cam_id]
+                    frame_data = camera.get_frame()
+                    
+                    if frame_data:
+                        frame, timestamp = frame_data
+                        
+                        # Downsample frame for preview
+                        frame_preview = cv2.resize(frame, (preview_width, preview_height), 
+                                                  interpolation=cv2.INTER_LINEAR)
+                        
+                        # Update FPS tracking
+                        tracker = fps_trackers[cam_id]
+                        tracker['frame_count'] += 1
+                        time_diff = current_time - tracker['last_time']
+                        
+                        if time_diff >= 1.0:  # Update FPS every second
+                            tracker['fps'] = tracker['frame_count'] / time_diff
+                            tracker['frame_count'] = 0
+                            tracker['last_time'] = current_time
+                        
+                        # Get symbol and color for this camera
+                        symbol = camera_symbols[idx] if idx < len(camera_symbols) else f"[{idx+1}]"
+                        color = camera_colors[idx % len(camera_colors)]
+                        
+                        # Get camera name
+                        cam_name = camera.camera_name if camera.camera_name else f"Camera {cam_id}"
+                        
+                        # Add semi-transparent background for text (scaled)
+                        overlay = frame_preview.copy()
+                        text_bg_width = int(min(preview_width - 10, 450 * preview_scale))
+                        text_bg_height = int(120 * preview_scale)  # Increased for extra line
+                        cv2.rectangle(overlay, (0, 0), (text_bg_width, text_bg_height), (0, 0, 0), -1)
+                        cv2.addWeighted(overlay, 0.7, frame_preview, 0.3, 0, frame_preview)
+                        
+                        # Scaled text sizes
+                        symbol_font_scale = 1.2 * preview_scale
+                        label_font_scale = 0.6 * preview_scale
+                        fps_font_scale = 0.55 * preview_scale
+                        label_thickness = max(1, int(2 * preview_scale))
+                        
+                        # Camera symbol (large and colorful)
+                        symbol_y = int(40 * preview_scale)
+                        cv2.putText(frame_preview, symbol, (10, symbol_y),
+                                  cv2.FONT_HERSHEY_SIMPLEX, symbol_font_scale, 
+                                  color, label_thickness + 1, cv2.LINE_AA)
+                        
+                        # Camera name (below symbol)
+                        name_x = int(70 * preview_scale) if idx < 9 else int(90 * preview_scale)
+                        name_y = int(30 * preview_scale)
+                        
+                        # Truncate camera name if too long
+                        max_name_length = int(35 / preview_scale)
+                        if len(cam_name) > max_name_length:
+                            cam_name = cam_name[:max_name_length-3] + "..."
+                        
+                        cv2.putText(frame_preview, cam_name, (name_x, name_y),
+                                  cv2.FONT_HERSHEY_SIMPLEX, label_font_scale, 
+                                  (200, 200, 200), label_thickness, cv2.LINE_AA)
+                        
+                        # FPS display
+                        fps_text = f"FPS: {tracker['fps']:.1f}"
+                        fps_y = int(55 * preview_scale)
+                        cv2.putText(frame_preview, fps_text, (name_x, fps_y),
+                                  cv2.FONT_HERSHEY_SIMPLEX, fps_font_scale, 
+                                  (0, 255, 0), label_thickness, cv2.LINE_AA)
+                        
+                        # Resolution info (actual recording resolution)
+                        res_text = f"Rec: {self.width}x{self.height}"
+                        res_y = int(78 * preview_scale)
+                        cv2.putText(frame_preview, res_text, (name_x, res_y),
+                                  cv2.FONT_HERSHEY_SIMPLEX, fps_font_scale, 
+                                  (150, 150, 255), label_thickness, cv2.LINE_AA)
+                        
+                        # Preview resolution
+                        preview_res_text = f"View: {preview_width}x{preview_height}"
+                        preview_res_y = int(98 * preview_scale)
+                        cv2.putText(frame_preview, preview_res_text, (name_x, preview_res_y),
+                                  cv2.FONT_HERSHEY_SIMPLEX, fps_font_scale * 0.9, 
+                                  (100, 100, 100), label_thickness, cv2.LINE_AA)
+                        
+                        grid_frames.append(frame_preview)
+                    else:
+                        # Create blank frame if no data (scaled)
+                        blank = np.zeros((preview_height, preview_width, 3), dtype=np.uint8)
+                        
+                        # Add "No Signal" message
+                        symbol = camera_symbols[idx] if idx < len(camera_symbols) else f"[{idx+1}]"
+                        label_font_scale = 0.9 * preview_scale
+                        no_signal_font_scale = 1.2 * preview_scale
+                        label_thickness = max(1, int(2 * preview_scale))
+                        
+                        cv2.putText(blank, f"{symbol} No Signal", 
+                                  (10, int(35 * preview_scale)),
+                                  cv2.FONT_HERSHEY_SIMPLEX, label_font_scale, 
+                                  (100, 100, 100), label_thickness, cv2.LINE_AA)
+                        grid_frames.append(blank)
+                
+                # Fill remaining grid positions with black frames
+                while len(grid_frames) < grid_rows * grid_cols:
+                    blank = np.zeros((preview_height, preview_width, 3), dtype=np.uint8)
+                    grid_frames.append(blank)
+                
+                # Build grid
+                rows = []
+                for i in range(grid_rows):
+                    start_idx = i * grid_cols
+                    end_idx = start_idx + grid_cols
+                    row_frames = grid_frames[start_idx:end_idx]
+                    rows.append(np.hstack(row_frames))
+                
+                combined = np.vstack(rows)
+                
+                # Add global title bar (scaled)
+                title_height = int(60 * preview_scale)
+                title_bar = np.zeros((title_height, combined.shape[1], 3), dtype=np.uint8)
+                title_text = f"Multi-Camera Preview ({int(preview_scale*100)}% scale, ~{target_fps}fps)  |  {num_cameras} Camera{'s' if num_cameras != 1 else ''}  |  Press 'Q' to quit"
+                title_font_scale = 0.6 * preview_scale
+                title_thickness = max(1, int(2 * preview_scale))
+                text_size = cv2.getTextSize(title_text, cv2.FONT_HERSHEY_SIMPLEX, 
+                                          title_font_scale, title_thickness)[0]
+                text_x = max(10, (combined.shape[1] - text_size[0]) // 2)
+                text_y = int(40 * preview_scale)
+                cv2.putText(title_bar, title_text, (text_x, text_y),
+                          cv2.FONT_HERSHEY_SIMPLEX, title_font_scale, 
+                          (255, 255, 255), title_thickness, cv2.LINE_AA)
+                
+                # Combine title bar with grid
+                final_display = np.vstack([title_bar, combined])
+                
+                cv2.imshow("Multi-Camera Preview", final_display)
+                
+                # Check for quit key (non-blocking)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+                    
+        except Exception as e:
+            logger.error(f"Preview error: {e}")
         finally:
             cv2.destroyAllWindows()
     
