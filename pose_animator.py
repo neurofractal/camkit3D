@@ -696,6 +696,7 @@ def animate_3d_pose(
     elevation=20,
     azimuth_start=45,
     rotation_speed=0.5,
+    rotation_axis='z',
     show_floor=True,
     show_frame_number=True,
     show_timestamp=True,
@@ -724,6 +725,11 @@ def animate_3d_pose(
         elevation (float): Camera elevation angle in degrees (0=level, 90=top-down) (default: 20)
         azimuth_start (float): Starting azimuth angle in degrees (default: 45)
         rotation_speed (float): Rotation speed in degrees per frame (for 'rotating' mode) (default: 0.5)
+        rotation_axis (str): Axis to rotate around in 'rotating' mode. Options:
+            - 'z': Rotate around Z-axis (azimuth rotation, default - spins horizontally)
+            - 'x': Rotate around X-axis (roll rotation - tumbles side to side)
+            - 'y': Rotate around Y-axis (pitch rotation - flips front to back)
+            - 'both': Rotate around both azimuth and elevation for orbital motion
         show_floor (bool): Whether to show a floor grid (default: True)
         show_frame_number (bool): Whether to display frame counter (default: True)
         show_timestamp (bool): Whether to display time in seconds (default: True)
@@ -745,11 +751,41 @@ def animate_3d_pose(
         >>> # Load your 3D data
         >>> points_3d = np.load("data_3d/pose_3d.npy")
         >>> 
-        >>> # Create a rotating animation
+        >>> # Create a rotating animation around Z-axis (default - horizontal spin)
         >>> animate_3d_pose(
         ...     points_3d,
-        ...     output_path="animations/pose_rotating.mp4",
+        ...     output_path="animations/pose_rotating_z.mp4",
         ...     view_mode='rotating',
+        ...     rotation_axis='z',
+        ...     fps=30
+        ... )
+        >>> 
+        >>> # Rotate around X-axis (tumble/roll)
+        >>> animate_3d_pose(
+        ...     points_3d,
+        ...     output_path="animations/pose_rotating_x.mp4",
+        ...     view_mode='rotating',
+        ...     rotation_axis='x',
+        ...     elevation=0,
+        ...     azimuth_start=90,
+        ...     fps=30
+        ... )
+        >>> 
+        >>> # Rotate around Y-axis (pitch/flip)
+        >>> animate_3d_pose(
+        ...     points_3d,
+        ...     output_path="animations/pose_rotating_y.mp4",
+        ...     view_mode='rotating',
+        ...     rotation_axis='y',
+        ...     fps=30
+        ... )
+        >>> 
+        >>> # Orbital rotation (both axes)
+        >>> animate_3d_pose(
+        ...     points_3d,
+        ...     output_path="animations/pose_orbital.mp4",
+        ...     view_mode='rotating',
+        ...     rotation_axis='both',
         ...     fps=30
         ... )
         >>> 
@@ -847,6 +883,9 @@ def animate_3d_pose(
     print(f"  FPS: {fps}")
     print(f"  Duration: {frames_to_animate/fps:.2f} seconds")
     print(f"  View mode: {view_mode}")
+    if view_mode == 'rotating':
+        print(f"  Rotation axis: {rotation_axis.upper()}")
+        print(f"  Rotation speed: {rotation_speed}°/frame")
     print(f"  Quality: {quality} (DPI: {dpi}, Bitrate: {bitrate})")
     print(f"  Output: {output_path}")
     
@@ -993,8 +1032,34 @@ def animate_3d_pose(
         
         # Update view angle
         if view_mode == 'rotating':
-            current_azim = azimuth_start + (frame * rotation_speed)
-            ax.view_init(elev=elevation, azim=current_azim)
+            # Calculate rotation based on axis
+            if rotation_axis.lower() == 'z':
+                # Rotate around Z-axis (azimuth - horizontal spin)
+                current_azim = azimuth_start + (frame * rotation_speed)
+                current_elev = elevation
+            elif rotation_axis.lower() == 'x':
+                # Rotate around X-axis (roll - tumble side to side)
+                # This is achieved by varying elevation
+                current_azim = azimuth_start
+                current_elev = elevation + (frame * rotation_speed)
+            elif rotation_axis.lower() == 'y':
+                # Rotate around Y-axis (pitch - flip front to back)
+                # This combines azimuth and elevation changes
+                current_azim = azimuth_start + (frame * rotation_speed)
+                # Add complementary elevation change for Y-axis rotation
+                current_elev = elevation + (frame * rotation_speed * 0.5)
+            elif rotation_axis.lower() == 'both':
+                # Orbital rotation (both azimuth and elevation)
+                current_azim = azimuth_start + (frame * rotation_speed)
+                # Oscillate elevation for orbital effect
+                import math
+                current_elev = elevation + 30 * math.sin(frame * rotation_speed * math.pi / 180)
+            else:
+                # Default to Z-axis rotation
+                current_azim = azimuth_start + (frame * rotation_speed)
+                current_elev = elevation
+            
+            ax.view_init(elev=current_elev, azim=current_azim)
         else:
             ax.view_init(elev=initial_view['elev'], azim=initial_view['azim'])
         
@@ -1102,6 +1167,335 @@ def animate_3d_pose(
     print(f"  File: {output_path}")
     print(f"  Size: {file_size_mb:.2f} MB")
     print(f"  Duration: {frames_to_animate/fps:.2f} seconds")
+    
+    return str(output_path)
+
+
+def animate_3d_pose_multiangle(
+    points_3d_aligned,
+    output_path,
+    fps=30,
+    frames_to_animate=None,
+    show_floor=False,
+    show_axes=False,
+    keypoint_size=70,
+    line_width=4,
+    figure_size=(16, 16),
+    dpi=100,
+    quality='high'
+):
+    """
+    Create a 2x2 multi-angle animation showing Front, Right, Top, and Left views simultaneously.
+    
+    Args:
+        points_3d_aligned (np.ndarray): Array of shape (n_frames, n_keypoints, 3) 
+                                        ALREADY ALIGNED to standard anatomical frame
+                                        (X=right, Y=forward, Z=up)
+        output_path (str): Path to save the output video
+        fps (int): Frames per second for the video
+        frames_to_animate (int, optional): Number of frames to animate. None = all frames
+        show_floor (bool): Whether to show floor grid
+        show_axes (bool): Whether to show axis labels
+        keypoint_size (int): Size of joint markers
+        line_width (float): Width of skeleton lines
+        figure_size (tuple): Figure size as (width, height) in inches
+        dpi (int): Resolution of output video
+        quality (str): Video quality preset ('low', 'medium', 'high', 'ultra')
+    
+    Returns:
+        str: Path to the saved video file
+        
+    Example:
+        >>> # First align data to standard frame
+        >>> points_3d_aligned, R = align_pose_to_standard_frame(points_3d, orientation)
+        >>> 
+        >>> # Create multi-angle animation
+        >>> animate_3d_pose_multiangle(
+        ...     points_3d_aligned,
+        ...     output_path="animations/multiview.mp4",
+        ...     fps=30,
+        ...     quality='high'
+        ... )
+    """
+    
+    # ========================================================================
+    # MediaPipe skeleton connections and colors
+    # ========================================================================
+    
+    SKELETON_CONNECTIONS = [
+        # Face
+        (0, 1), (1, 2), (2, 3), (3, 7),
+        (0, 4), (4, 5), (5, 6), (6, 8),
+        (9, 10),
+        # Torso
+        (11, 12), (11, 23), (12, 24), (23, 24),
+        # Left arm
+        (11, 13), (13, 15), (15, 17), (15, 19), (15, 21),
+        # Right arm
+        (12, 14), (14, 16), (16, 18), (16, 20), (16, 22),
+        # Left leg
+        (23, 25), (25, 27), (27, 29), (27, 31),
+        # Right leg
+        (24, 26), (26, 28), (28, 30), (28, 32),
+    ]
+    
+    BODY_PART_COLORS = {
+        'face': '#FF6B6B',
+        'torso': '#4ECDC4',
+        'left_arm': '#45B7D1',
+        'right_arm': '#96CEB4',
+        'left_leg': '#FFEAA7',
+        'right_leg': '#DDA15E',
+    }
+    
+    def get_connection_color(connection):
+        """Assign colors to skeleton connections."""
+        start, end = connection
+        if start <= 10 and end <= 10:
+            return BODY_PART_COLORS['face']
+        if connection in [(11, 12), (11, 23), (12, 24), (23, 24)]:
+            return BODY_PART_COLORS['torso']
+        if start in [11, 13, 15, 17, 19, 21] and end in [11, 13, 15, 17, 19, 21]:
+            return BODY_PART_COLORS['left_arm']
+        if start in [12, 14, 16, 18, 20, 22] and end in [12, 14, 16, 18, 20, 22]:
+            return BODY_PART_COLORS['right_arm']
+        if start in [23, 25, 27, 29, 31] and end in [23, 25, 27, 29, 31]:
+            return BODY_PART_COLORS['left_leg']
+        if start in [24, 26, 28, 30, 32] and end in [24, 26, 28, 30, 32]:
+            return BODY_PART_COLORS['right_leg']
+        return '#888888'
+    
+    # ========================================================================
+    # Setup and validation
+    # ========================================================================
+    
+    print("\n" + "="*70)
+    print("CREATING MULTI-ANGLE 3D POSE ANIMATION")
+    print("="*70)
+    
+    # Validate input
+    if points_3d_aligned.ndim != 3 or points_3d_aligned.shape[2] != 3:
+        raise ValueError(f"Expected points_3d shape (n_frames, n_keypoints, 3), got {points_3d_aligned.shape}")
+    
+    n_frames = points_3d_aligned.shape[0]
+    if frames_to_animate is None:
+        frames_to_animate = n_frames
+    else:
+        frames_to_animate = min(frames_to_animate, n_frames)
+    
+    # Quality presets
+    quality_presets = {
+        'low': {'dpi': 75, 'bitrate': 1500},
+        'medium': {'dpi': 100, 'bitrate': 3000},
+        'high': {'dpi': 150, 'bitrate': 5000},
+        'ultra': {'dpi': 200, 'bitrate': 8000}
+    }
+    
+    if quality in quality_presets:
+        dpi = quality_presets[quality]['dpi']
+        bitrate = quality_presets[quality]['bitrate']
+    else:
+        bitrate = 3000
+    
+    print(f"\nSettings:")
+    print(f"  Total frames available: {n_frames}")
+    print(f"  Frames to animate: {frames_to_animate}")
+    print(f"  FPS: {fps}")
+    print(f"  Duration: {frames_to_animate/fps:.2f} seconds")
+    print(f"  View mode: Multi-angle (2x2 grid)")
+    print(f"  Quality: {quality} (DPI: {dpi}, Bitrate: {bitrate})")
+    print(f"  Output: {output_path}")
+    
+    # ========================================================================
+    # Calculate bounds for consistent scaling
+    # ========================================================================
+    
+    valid_points = points_3d_aligned[~np.isnan(points_3d_aligned)]
+    x_min, x_max = np.percentile(valid_points[::3], [1, 99])
+    y_min, y_max = np.percentile(valid_points[1::3], [1, 99])
+    z_min, z_max = np.percentile(valid_points[2::3], [1, 99])
+    
+    padding = 200  # mm
+    x_range = [x_min - padding, x_max + padding]
+    y_range = [y_min - padding, y_max + padding]
+    z_range = [z_min - padding, z_max + padding]
+    
+    # ========================================================================
+    # Define views (using corrected angles for aligned data)
+    # ========================================================================
+    
+    views = {
+        'Front': {'elev': 0, 'azim': 90, 'position': (0, 0)},   # Top-left
+        'Right': {'elev': 0, 'azim': 0, 'position': (0, 1)},    # Top-right
+        'Top': {'elev': 90, 'azim': 0, 'position': (1, 0)},     # Bottom-left
+        'Left': {'elev': 0, 'azim': 180, 'position': (1, 1)},   # Bottom-right
+    }
+    
+    # ========================================================================
+    # Create figure with 2x2 subplots
+    # ========================================================================
+    
+    fig = plt.figure(figsize=figure_size, facecolor='white')
+    
+    # Create 2x2 grid of 3D subplots
+    axes = {}
+    for view_name, view_info in views.items():
+        row, col = view_info['position']
+        ax = fig.add_subplot(2, 2, row*2 + col + 1, projection='3d', facecolor='white')
+        axes[view_name] = {
+            'ax': ax,
+            'elev': view_info['elev'],
+            'azim': view_info['azim']
+        }
+    
+    def init():
+        """Initialize all subplots."""
+        for view_name, ax_info in axes.items():
+            ax = ax_info['ax']
+            ax.clear()
+            ax.set_xlim(x_range)
+            ax.set_ylim(y_range)
+            ax.set_zlim(z_range)
+            
+            if not show_axes:
+                ax.set_axis_off()
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                ax.set_zlabel('')
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_zticks([])
+                ax.grid(False)
+            
+            ax.view_init(elev=ax_info['elev'], azim=ax_info['azim'])
+            ax.set_title(view_name, fontsize=14, fontweight='bold', pad=10)
+            
+            if show_floor:
+                xx, yy = np.meshgrid(
+                    np.linspace(x_range[0], x_range[1], 10),
+                    np.linspace(y_range[0], y_range[1], 10)
+                )
+                zz = np.ones_like(xx) * z_range[0]
+                ax.plot_surface(xx, yy, zz, alpha=0.1, color='gray')
+        
+        return []
+    
+    def update(frame):
+        """Update function for each frame."""
+        current_pose = points_3d_aligned[frame]
+        
+        for view_name, ax_info in axes.items():
+            ax = ax_info['ax']
+            ax.clear()
+            
+            # Set consistent limits
+            ax.set_xlim(x_range)
+            ax.set_ylim(y_range)
+            ax.set_zlim(z_range)
+            
+            if not show_axes:
+                ax.set_axis_off()
+                ax.grid(False)
+            
+            # Update view angle
+            ax.view_init(elev=ax_info['elev'], azim=ax_info['azim'])
+            
+            # Plot floor
+            if show_floor:
+                xx, yy = np.meshgrid(
+                    np.linspace(x_range[0], x_range[1], 10),
+                    np.linspace(y_range[0], y_range[1], 10)
+                )
+                zz = np.ones_like(xx) * z_range[0]
+                ax.plot_surface(xx, yy, zz, alpha=0.1, color='gray')
+            
+            # Draw skeleton connections
+            for connection in SKELETON_CONNECTIONS:
+                start_idx, end_idx = connection
+                start = current_pose[start_idx]
+                end = current_pose[end_idx]
+                
+                if not np.any(np.isnan(start)) and not np.any(np.isnan(end)):
+                    color = get_connection_color(connection)
+                    ax.plot3D(
+                        [start[0], end[0]],
+                        [start[1], end[1]],
+                        [start[2], end[2]],
+                        color=color,
+                        linewidth=line_width,
+                        alpha=0.8
+                    )
+            
+            # Plot keypoints
+            valid_mask = ~np.isnan(current_pose).any(axis=1)
+            if valid_mask.any():
+                valid_kps = current_pose[valid_mask]
+                ax.scatter(
+                    valid_kps[:, 0],
+                    valid_kps[:, 1],
+                    valid_kps[:, 2],
+                    c='#2C3E50',
+                    s=keypoint_size,
+                    alpha=0.9,
+                    edgecolors='white',
+                    linewidths=2,
+                    depthshade=True
+                )
+            
+            # Set title with view name
+            ax.set_title(view_name, fontsize=14, fontweight='bold', pad=10)
+        
+        # Add overall title with time and frame number
+        time_sec = frame / fps
+        fig.suptitle(
+            f'Frame: {frame}/{frames_to_animate-1}  |  Time: {time_sec:.2f}s',
+            fontsize=16,
+            fontweight='bold',
+            y=0.98
+        )
+        
+        return []
+    
+    # ========================================================================
+    # Create animation
+    # ========================================================================
+    
+    print("\nGenerating animation frames...")
+    anim = FuncAnimation(
+        fig,
+        update,
+        init_func=init,
+        frames=tqdm(range(frames_to_animate), desc="Animating"),
+        interval=1000/fps,
+        blit=False
+    )
+    
+    # ========================================================================
+    # Save video
+    # ========================================================================
+    
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    print(f"\nSaving video to {output_path}...")
+    writer = FFMpegWriter(
+        fps=fps,
+        metadata={'artist': 'pose_animator'},
+        bitrate=bitrate,
+        codec='h264'
+    )
+    
+    anim.save(str(output_path), writer=writer, dpi=dpi)
+    plt.close(fig)
+    
+    # Get file size
+    file_size_mb = output_path.stat().st_size / (1024 * 1024)
+    
+    print(f"\n✓ Multi-angle animation saved successfully!")
+    print(f"  File: {output_path}")
+    print(f"  Size: {file_size_mb:.2f} MB")
+    print(f"  Duration: {frames_to_animate/fps:.2f} seconds")
+    print(f"  Views: Front, Right, Top, Left")
     
     return str(output_path)
 
