@@ -190,6 +190,18 @@ Examples:
         help='Recording frame rate (default: 30)'
     )
     parser.add_argument(
+        '--width',
+        type=int,
+        default=1280,
+        help='Camera resolution width (default: 1280)'
+    )
+    parser.add_argument(
+        '--height',
+        type=int,
+        default=720,
+        help='Camera resolution height (default: 720)'
+    )
+    parser.add_argument(
         '--output-dir',
         type=str,
         default=str(Path.home() / 'Documents' / 'recordings'),
@@ -210,6 +222,7 @@ Examples:
     print("="*60)
     print(f"Duration:     {args.duration:.1f} seconds")
     print(f"Cameras:      {args.cameras}")
+    print(f"Resolution:   {args.width}x{args.height}")
     print(f"FPS:          {args.fps}")
     print(f"Output dir:   {args.output_dir}")
     print("="*60 + "\n")
@@ -219,6 +232,8 @@ Examples:
         print("Setting up multi-camera recorder...")
         recorder = MultiCameraRecorder(
             camera_ids=args.cameras,
+            width=args.width,
+            height=args.height,
             fps=args.fps,
             base_output_dir=args.output_dir
         )

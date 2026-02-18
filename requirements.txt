@@ -18,3 +18,5 @@ toml>=0.10.0
 
 # Progress bars
 tqdm>=4.60.0
+
+rich>=14.3.2

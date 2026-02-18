@@ -43,6 +43,7 @@ def synchronize_videos_to_ideal_fps(
     raw_videos_subdir: str = "raw_videos",
     out_subdir: str = "synchronized_videos",
     max_time_diff_ms: float = 100.0,  # Maximum allowed time difference in milliseconds
+    progress_callback=None,  # callable(frames_done: int, total_frames: int) or None
 ):
     """
     Synchronize all videos to an ideal clock at target_fps using saved timestamps.
@@ -246,7 +247,10 @@ def synchronize_videos_to_ideal_fps(
     
     try:
         for frame_idx in range(num_ideal_frames):
-            if frame_idx % 100 == 0:
+            # Report progress via callback (used by batch runner for live display)
+            if progress_callback is not None:
+                progress_callback(frame_idx, num_ideal_frames)
+            elif frame_idx % 100 == 0:
                 progress = (frame_idx / num_ideal_frames) * 100
                 print(f"  Progress: {progress:.1f}% ({frame_idx}/{num_ideal_frames})", end='\r')
             
