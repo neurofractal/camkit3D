@@ -1,3 +1,43 @@
+Metadata-Version: 2.4
+Name: camkit3d
+Version: 0.1.0
+Summary: Multi-camera 3D pose estimation pipeline for biomechanical and social interaction research.
+Author-email: Rob Seymoue <rob.seymour@psych.ox.ac.uk>
+License: MIT
+Project-URL: Homepage, https://github.com/your-repo/camkit3d
+Project-URL: Documentation, https://github.com/your-repo/camkit3d#readme
+Project-URL: Repository, https://github.com/your-repo/camkit3d
+Project-URL: Issues, https://github.com/your-repo/camkit3d/issues
+Keywords: pose estimation,3D triangulation,multi-camera,motion capture,markerless,mediapipe,biomechanics
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Scientific/Engineering :: Image Processing
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.23
+Requires-Dist: opencv-python>=4.7
+Requires-Dist: matplotlib>=3.6
+Requires-Dist: scipy>=1.10
+Requires-Dist: mediapipe>=0.10
+Requires-Dist: toml>=0.10
+Requires-Dist: tqdm>=4.60
+Provides-Extra: datapixx
+Requires-Dist: pypixxlib; extra == "datapixx"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
+Dynamic: license-file
+
 # CamKit3D
 
 Multi-camera 3D pose estimation pipeline for naturalistic behaviour research.

@@ -1,0 +1,16 @@
+LICENSE
+README.md
+pyproject.toml
+src/camkit3d/__init__.py
+src/camkit3d/analysis.py
+src/camkit3d/pose2d.py
+src/camkit3d/pose3d.py
+src/camkit3d/recorder.py
+src/camkit3d/sync.py
+src/camkit3d/sync_qa.py
+src/camkit3d.egg-info/PKG-INFO
+src/camkit3d.egg-info/SOURCES.txt
+src/camkit3d.egg-info/dependency_links.txt
+src/camkit3d.egg-info/requires.txt
+src/camkit3d.egg-info/top_level.txt
+tests/test_imports.py

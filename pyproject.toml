@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "camkit3d"
+version = "0.1.0"
+description = "Multi-camera 3D pose estimation pipeline for biomechanical and social interaction research."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Rob Seymoue", email = "rob.seymour@psych.ox.ac.uk"},
+]
+keywords = [
+    "pose estimation",
+    "3D triangulation",
+    "multi-camera",
+    "motion capture",
+    "markerless",
+    "mediapipe",
+    "biomechanics",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+
+dependencies = [
+    "numpy>=1.23",
+    "opencv-python>=4.7",
+    "matplotlib>=3.6",
+    "scipy>=1.10",
+    "mediapipe>=0.10",
+    "toml>=0.10",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+datapixx = ["pypixxlib"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-repo/camkit3d"
+Documentation = "https://github.com/your-repo/camkit3d#readme"
+Repository = "https://github.com/your-repo/camkit3d"
+Issues = "https://github.com/your-repo/camkit3d/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
