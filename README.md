@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/neurofractal/camkit3D">
-    <img src="images/logo.png" width="300">
+    <img src="images/logo.png" width="250">
   </a>
 </p>
 
