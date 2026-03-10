@@ -1,5 +1,11 @@
 # CamKit3D
 
+<p align="center">
+  <a href="https://github.com/neurofractal/camkit3D">
+    <img src="images/logo.png" width="300">
+  </a>
+</p>
+
 Multi-camera 3D pose estimation pipeline for naturalistic behaviour research.
 
 CamKit3D turns a set of cheap USB webcams into a markerless motion-capture system. It handles the full journey from raw video to 3D skeleton data: recording, temporal synchronisation, 2D pose estimation, triangulation, and visualisation.
