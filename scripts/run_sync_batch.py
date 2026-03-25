@@ -70,6 +70,11 @@ matplotlib.use("Agg")
 # Folder discovery & validation
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _is_macos_tempfile(path: Path) -> bool:
+    """Return True for macOS resource-fork / temp files (e.g. '._camera_0')."""
+    return path.name.startswith("._")
+
+
 def validate_folder(folder: Path) -> tuple[bool, str]:
     """
     Check whether a subfolder has the expected recording layout.
@@ -83,15 +88,19 @@ def validate_folder(folder: Path) -> tuple[bool, str]:
     if not raw_videos.is_dir():
         return False, "missing 'raw_videos/' subfolder"
 
-    # Look for video files (.avi or .mp4)
+    # Look for video files (.avi or .mp4), skipping macOS temp files
     video_files = sorted(
-        list(raw_videos.glob("*.avi")) + list(raw_videos.glob("*.mp4"))
+        v for v in (list(raw_videos.glob("*.avi")) + list(raw_videos.glob("*.mp4")))
+        if not _is_macos_tempfile(v)
     )
     if not video_files:
         return False, "no .avi or .mp4 files in raw_videos/"
 
-    # Look for matching camera_X_timestamps.npy files
-    timestamp_files = sorted(folder.glob("camera_*_timestamps.npy"))
+    # Look for matching camera_X_timestamps.npy files, skipping macOS temp files
+    timestamp_files = sorted(
+        t for t in folder.glob("camera_*_timestamps.npy")
+        if not _is_macos_tempfile(t)
+    )
     if not timestamp_files:
         return False, "no camera_*_timestamps.npy files found"
 
@@ -137,7 +146,10 @@ def discover_folders(root: Path) -> tuple[list[Path], list[tuple[Path, str]]]:
     valid = []
     skipped = []
 
-    candidates = sorted(p for p in root.iterdir() if p.is_dir())
+    candidates = sorted(
+        p for p in root.iterdir()
+        if p.is_dir() and not _is_macos_tempfile(p)
+    )
     for folder in candidates:
         ok, reason = validate_folder(folder)
         if ok:
@@ -299,6 +311,50 @@ def _bar(done: int, total: int, width: int = 20) -> str:
 
 
 def build_table(statuses: list[FolderStatus], n_workers: int) -> Table:
+    """Build a Rich table that fits in the terminal.
+
+    When there are many folders (>20) we collapse finished rows to keep the
+    table within a reasonable height.  Active, waiting, and error rows are
+    always shown.  Completed rows are trimmed to fill remaining space, with
+    a summary line for any hidden ones.
+    """
+    import shutil
+    term_lines = shutil.get_terminal_size((80, 40)).lines
+    # Reserve lines for: title(2) + header(2) + caption(2) + border(2) + summary line(1) + some breathing room(3)
+    max_rows = max(10, term_lines - 12)
+
+    # Partition rows by priority
+    active  = []  # running / plotting — always shown
+    waiting = []
+    errors  = []
+    done    = []
+
+    for s in statuses:
+        snap = s.snapshot()
+        state = snap[1]
+        if state in ("running", "plotting"):
+            active.append(s)
+        elif state == "waiting":
+            waiting.append(s)
+        elif state == "error":
+            errors.append(s)
+        else:
+            done.append(s)
+
+    # Decide which rows to display
+    must_show = active + errors          # always visible
+    budget    = max_rows - len(must_show)
+
+    # Show waiting next, then done (most recent first)
+    show_waiting = waiting[:budget]
+    budget -= len(show_waiting)
+
+    show_done = done[-budget:] if budget > 0 else []
+    hidden_done = len(done) - len(show_done)
+    hidden_waiting = len(waiting) - len(show_waiting)
+
+    display_order = active + show_waiting + show_done + errors
+
     tbl = Table(
         box=box.SIMPLE_HEAVY,
         expand=True,
@@ -313,7 +369,30 @@ def build_table(statuses: list[FolderStatus], n_workers: int) -> Table:
 
     total_done = total_frames = 0
 
+    # Insert a summary row for hidden completed folders
+    if hidden_done > 0 or hidden_waiting > 0:
+        parts = []
+        if hidden_done > 0:
+            parts.append(f"[green]{hidden_done} done[/green]")
+        if hidden_waiting > 0:
+            parts.append(f"[dim]{hidden_waiting} queued[/dim]")
+        tbl.add_row(
+            "[dim]…[/dim]",
+            f"[dim]({', '.join(parts)} — not shown)[/dim]",
+            "", "", "",
+        )
+
+    # Accumulate totals from ALL statuses (including hidden)
     for s in statuses:
+        _, state, _, fdone, ftotal, _ = s.snapshot()
+        if state in ("running",) and ftotal > 0:
+            total_done   += fdone
+            total_frames += ftotal
+        elif state in ("done", "plotting"):
+            total_done   += ftotal
+            total_frames += ftotal
+
+    for s in display_order:
         name, state, phase, fdone, ftotal, elapsed = s.snapshot()
         style = STATE_STYLE[state]
         icon  = STATE_ICON[state]
@@ -322,16 +401,10 @@ def build_table(statuses: list[FolderStatus], n_workers: int) -> Table:
         if state in ("running",) and ftotal > 0:
             bar = _bar(fdone, ftotal)
             frame_str = f"{bar} [dim]{fdone}/{ftotal}[/dim]"
-            total_done   += fdone
-            total_frames += ftotal
         elif state == "done":
             frame_str = f"[green]{phase}[/green]"
-            total_frames += ftotal
-            total_done   += ftotal
         elif state == "plotting":
             frame_str = f"[yellow]{'█' * 20}[/yellow]"
-            total_done   += ftotal
-            total_frames += ftotal
         elif state == "error":
             frame_str = "[red]—[/red]"
         else:
@@ -354,14 +427,14 @@ def build_table(statuses: list[FolderStatus], n_workers: int) -> Table:
         )
 
     running = sum(1 for s in statuses if s.state == "running")
-    done    = sum(1 for s in statuses if s.state == "done")
-    errors  = sum(1 for s in statuses if s.state == "error")
+    done_n  = sum(1 for s in statuses if s.state == "done")
+    errors_n = sum(1 for s in statuses if s.state == "error")
     pct     = f"  ({100*total_done//total_frames}%)" if total_frames else ""
 
     tbl.caption = Text.from_markup(
         f"[dim]Active:[/dim] [cyan]{running}[/cyan]  "
-        f"[dim]Done:[/dim] [green]{done}/{len(statuses)}[/green]  "
-        f"[dim]Errors:[/dim] [red]{errors}[/red]  "
+        f"[dim]Done:[/dim] [green]{done_n}/{len(statuses)}[/green]  "
+        f"[dim]Errors:[/dim] [red]{errors_n}[/red]  "
         f"[dim]Total frames:[/dim] {total_done}/{total_frames}{pct}"
     )
     return tbl
@@ -397,9 +470,9 @@ def run_batch(
 
     print(f"✓  Found {len(folders)} valid folder(s) under: {root_dir}\n")
     for f in folders:
-        n_ts = len(list(f.glob("camera_*_timestamps.npy")))
+        n_ts = len([t for t in f.glob("camera_*_timestamps.npy") if not _is_macos_tempfile(t)])
         raw = f / "raw_videos"
-        n_vid = len(list(raw.glob("*.avi")) + list(raw.glob("*.mp4")))
+        n_vid = len([v for v in (list(raw.glob("*.avi")) + list(raw.glob("*.mp4"))) if not _is_macos_tempfile(v)])
         print(f"     {f.name}/  ({n_ts} cameras, {n_vid} videos)")
     print()
 
