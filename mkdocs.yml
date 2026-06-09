@@ -1,0 +1,63 @@
+site_name: CamKit3D
+site_description: Multi-camera 3D pose estimation pipeline for naturalistic behaviour research
+site_url: https://neurofractal.github.io/camkit3D/
+repo_url: https://github.com/neurofractal/camkit3D
+repo_name: neurofractal/camkit3D
+
+theme:
+  name: material
+  logo: images/logo.png
+  features:
+    - navigation.sections      # render top-level nav items as grouped sections
+    - navigation.indexes       # allow a section to have its own index page
+    - navigation.top           # back-to-top button
+    - navigation.footer        # next/previous links
+    - search.suggest
+    - search.highlight
+    - content.code.copy        # copy button on code blocks
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition                 # note/warning/tip callout boxes
+  - pymdownx.details
+  - pymdownx.superfences        # nested + better code fences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Pipeline:
+      - Overview: pipeline/index.md
+      - "Stage 1 — Recording": pipeline/recording.md
+      - "Stage 2 — Synchronisation": pipeline/synchronisation.md
+      - "Stage 3 — 2D Pose": pipeline/pose2d.md
+      - "Stage 4 — Triangulation": pipeline/triangulation.md
+      - "Stage 5 — Analysis & Animation": pipeline/analysis.md
+      - Smoothing Strategy: pipeline/smoothing.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Camera Calibration: tutorials/calibration.md
+      - End-to-end Walkthrough: tutorials/end-to-end.md
+  - Batch Processing: batch-processing.md
+  - Examples: examples/index.md
+  - Validation: validation.md

@@ -1,0 +1,42 @@
+# CamKit3D
+
+<p align="center">
+  <a href="https://github.com/neurofractal/camkit3D">
+    <img src="images/logo.png" width="250">
+  </a>
+</p>
+
+**Multi-camera 3D pose estimation pipeline for naturalistic behaviour research.**
+
+CamKit3D turns a set of cheap USB webcams into a markerless motion-capture system. It handles the full journey from raw video to 3D skeleton data: recording, temporal synchronisation, 2D pose estimation, triangulation, and visualisation.
+
+---
+
+## Quick links
+
+- New here? Start with [Installation](installation.md), then the [Pipeline Overview](pipeline/index.md).
+- Want to run the whole thing end-to-end? See the [End-to-end Walkthrough](tutorials/end-to-end.md).
+- Processing many trials? See [Batch Processing](batch-processing.md).
+- Setting up cameras? See [Camera Calibration](tutorials/calibration.md).
+
+## What CamKit3D does
+
+The pipeline is organised as five sequential stages. Each stage reads the output of the previous one, so you can re-run any step independently.
+
+| Stage | Module | Purpose |
+|---|---|---|
+| 1 | `camkit3d.recorder` | Capture synchronised video from multiple USB webcams |
+| 2 | `camkit3d.sync` | Align frames across cameras to a common timing grid |
+| 3 | `camkit3d.pose2d` | Extract 33 body keypoints per frame with MediaPipe |
+| 4 | `camkit3d.pose3d` | Triangulate 2D keypoints into 3D world coordinates |
+| 5 | `camkit3d.analysis` | Orient, plot, and animate the 3D skeleton data |
+
+## Acknowledgements
+
+- [MediaPipe Pose](https://google.github.io/mediapipe/solutions/pose.html) (Google) for 2D keypoint detection
+- [Anipose](https://anipose.readthedocs.io/) for triangulation methodology
+- [FreeMoCap](https://freemocap.org/) for calibration format and inspiration
+
+## License
+
+MIT — see [LICENSE](https://github.com/neurofractal/camkit3D/blob/main/LICENSE) for details.
