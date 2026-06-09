@@ -118,7 +118,6 @@ try:
     from rich.live import Live
     from rich.table import Table
     from rich.text import Text
-    from rich.panel import Panel
     from rich import box
     HAS_RICH = True
 except ImportError:
@@ -168,6 +167,11 @@ def _restore_inner_output():
 #  Folder discovery & validation
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _is_macos_tempfile(path: Path) -> bool:
+    """Return True for macOS resource-fork / temp files (e.g. '._camera_0')."""
+    return path.name.startswith("._")
+
+
 def validate_folder(folder: Path, video_subdir: str = "synchronized_videos") -> tuple[bool, str]:
     """
     Check whether a subfolder has videos to process.
@@ -181,11 +185,14 @@ def validate_folder(folder: Path, video_subdir: str = "synchronized_videos") -> 
     if not video_dir.is_dir():
         return False, f"missing '{video_subdir}/' subfolder"
 
-    video_files = (
-        list(video_dir.glob("*.mp4"))
-        + list(video_dir.glob("*.avi"))
-        + list(video_dir.glob("*.mov"))
-    )
+    video_files = [
+        v for v in (
+            list(video_dir.glob("*.mp4"))
+            + list(video_dir.glob("*.avi"))
+            + list(video_dir.glob("*.mov"))
+        )
+        if not _is_macos_tempfile(v)
+    ]
     if not video_files:
         return False, f"no video files in {video_subdir}/"
 
@@ -203,7 +210,10 @@ def discover_folders(
     valid = []
     skipped = []
 
-    candidates = sorted(p for p in root.iterdir() if p.is_dir() and p.match(pattern))
+    candidates = sorted(
+        p for p in root.iterdir()
+        if p.is_dir() and p.match(pattern) and not _is_macos_tempfile(p)
+    )
     for folder in candidates:
         ok, reason = validate_folder(folder, video_subdir)
         if ok:
@@ -419,33 +429,30 @@ def process_folder(
 #  Rich live table
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Muted colour palette — works on dark and light terminals
-C = {
-    "waiting":   "dim",
-    "pose":      "#5ea8f5",       # soft blue
-    "smoothing": "#c084fc",       # lavender
-    "done":      "#4ade80",       # mint green
-    "error":     "#f87171",       # coral red
-    "accent":    "#fbbf24",       # warm amber
-    "muted":     "#94a3b8",       # slate grey
+# Muted colour palette — matches run_sync_batch.py style
+STATE_ICON = {
+    "waiting":   "[dim]⏳[/dim]",
+    "pose":      "[bold cyan]⚙[/bold cyan]",
+    "smoothing": "[bold yellow]≋[/bold yellow]",
+    "done":      "[bold green]✓[/bold green]",
+    "error":     "[bold red]✗[/bold red]",
 }
-
-ICON = {
-    "waiting":   " · ",
-    "pose":      " ◉ ",
-    "smoothing": " ≋ ",
-    "done":      " ✓ ",
-    "error":     " ✗ ",
+STATE_STYLE = {
+    "waiting":  "dim",
+    "pose":     "cyan",
+    "smoothing": "yellow",
+    "done":     "green",
+    "error":    "red",
 }
 
 
 def _bar(done: int, total: int, width: int = 14) -> str:
-    """Compact block progress bar."""
+    """Simple ASCII progress bar string."""
     if total <= 0:
-        return "·" * width
+        return " " * width
     frac = min(done / total, 1.0)
     filled = int(frac * width)
-    return "━" * filled + "╌" * (width - filled)
+    return "█" * filled + "░" * (width - filled)
 
 
 def build_table(
@@ -453,104 +460,129 @@ def build_table(
     n_workers: int,
     config_line: str,
 ) -> Table:
-    """Build the live-updating rich table."""
+    """Build a Rich table that fits in the terminal.
 
-    # Count how many individual videos are being processed RIGHT NOW
-    total_vids_active = 0
-    for s in statuses:
-        snap = s.snapshot()
-        if snap["state"] == "pose":
-            total_vids_active += snap["n_cameras"] - snap["cameras_done"]
+    When there are many folders (>20) we collapse finished rows to keep the
+    table within a reasonable height.  Active, waiting, and error rows are
+    always shown.  Completed rows are trimmed to fill remaining space, with
+    a summary line for any hidden ones.
+    """
+    import shutil
+    term_lines = shutil.get_terminal_size((80, 40)).lines
+    max_rows = max(10, term_lines - 12)
 
-    tbl = Table(
-        box=box.ROUNDED,
-        expand=True,
-        title=(
-            f"[bold]  BATCH 2D POSE ESTIMATION  [/bold]\n"
-            f"[{C['muted']}]{config_line}[/{C['muted']}]"
-        ),
-        title_style="",
-        border_style=C["muted"],
-        header_style=f"bold {C['accent']}",
-        show_lines=False,
-        pad_edge=True,
-        padding=(0, 1),
-    )
-    tbl.add_column("",          width=3,  no_wrap=True)
-    tbl.add_column("Folder",    ratio=4,  no_wrap=True)
-    tbl.add_column("Cameras",   ratio=4,  no_wrap=True)
-    tbl.add_column("Status",    ratio=3,  no_wrap=True)
-    tbl.add_column("Time",      width=8,  justify="right", no_wrap=True)
+    # Partition rows by priority
+    active  = []   # pose / smoothing — always shown
+    waiting = []
+    errors  = []
+    done    = []
 
     for s in statuses:
         snap = s.snapshot()
         state = snap["state"]
-        style = C[state]
-        icon = ICON[state]
+        if state in ("pose", "smoothing"):
+            active.append(s)
+        elif state == "waiting":
+            waiting.append(s)
+        elif state == "error":
+            errors.append(s)
+        else:
+            done.append(s)
 
+    # Decide which rows to display
+    must_show = active + errors
+    budget    = max_rows - len(must_show)
+
+    show_waiting = waiting[:budget]
+    budget -= len(show_waiting)
+
+    show_done = done[-budget:] if budget > 0 else []
+    hidden_done = len(done) - len(show_done)
+    hidden_waiting = len(waiting) - len(show_waiting)
+
+    display_order = active + show_waiting + show_done + errors
+
+    tbl = Table(
+        box=box.SIMPLE_HEAVY,
+        expand=True,
+        title=(
+            f"[bold]Batch Pose  —  {len(statuses)} folders  ({n_workers} workers)[/bold]\n"
+            f"[dim]{config_line}[/dim]"
+        ),
+        show_lines=False,
+    )
+    tbl.add_column("",         width=2,  no_wrap=True)          # icon
+    tbl.add_column("Folder",   ratio=3,  no_wrap=True)
+    tbl.add_column("Cameras",  ratio=3,  no_wrap=True)          # bar + N/X
+    tbl.add_column("Phase",    ratio=3,  no_wrap=True)
+    tbl.add_column("Elapsed",  width=8,  justify="right", no_wrap=True)
+
+    # Insert a summary row for hidden folders
+    if hidden_done > 0 or hidden_waiting > 0:
+        parts = []
+        if hidden_done > 0:
+            parts.append(f"[green]{hidden_done} done[/green]")
+        if hidden_waiting > 0:
+            parts.append(f"[dim]{hidden_waiting} queued[/dim]")
+        tbl.add_row(
+            "[dim]…[/dim]",
+            f"[dim]({', '.join(parts)} — not shown)[/dim]",
+            "", "", "",
+        )
+
+    for s in display_order:
+        snap = s.snapshot()
+        state = snap["state"]
+        style = STATE_STYLE[state]
+        icon  = STATE_ICON[state]
         nd, nt = snap["cameras_done"], snap["n_cameras"]
 
-        # ── Cameras column ─────────────────────────────────────────────
-        if state == "pose":
+        # Cameras column
+        if state == "pose" and nt > 0:
             bar = _bar(nd, nt)
-            cam_str = f"[{style}]{bar}[/{style}]  [{C['muted']}]{nd}/{nt} done[/{C['muted']}]"
+            cam_str = f"{bar} [dim]{nd}/{nt}[/dim]"
         elif state == "smoothing":
-            cam_str = f"[{style}]{'≋ ' * 7}[/{style}]  [{C['muted']}]{nt} cams[/{C['muted']}]"
+            cam_str = f"[yellow]{'█' * 14}[/yellow] [dim]{nt} cams[/dim]"
         elif state == "done":
-            cam_str = f"[{style}]{nt} cams[/{style}]"
+            cam_str = f"[green]{snap['phase']}[/green]"
         elif state == "error":
-            cam_str = f"[{style}]—[/{style}]"
+            cam_str = "[red]—[/red]"
         else:
-            cam_str = f"[{C['muted']}]{nt} cams[/{C['muted']}]"
+            cam_str = f"[dim]{nt} cams[/dim]"
 
-        # ── Status column ──────────────────────────────────────────────
-        if state == "waiting":
-            status_str = f"[{C['muted']}]queued[/{C['muted']}]"
+        # Phase column (skip when already shown in cam col for done/error)
+        if state in ("done", "error"):
+            phase_str = ""
         elif state == "pose":
             active_now = nt - nd
-            status_str = f"[{style}]{active_now} video{'s' if active_now != 1 else ''} processing[/{style}]"
+            phase_str = f"[{style}]{active_now} video{'s' if active_now != 1 else ''} processing[/{style}]"
         elif state == "smoothing":
-            status_str = f"[{style}]filtering keypoints[/{style}]"
-        elif state == "done":
-            status_str = f"[{style}]{snap['phase']}[/{style}]"
-        elif state == "error":
-            status_str = f"[{style}]{snap['phase'][:40]}[/{style}]"
+            phase_str = f"[{style}]filtering keypoints[/{style}]"
         else:
-            status_str = ""
+            phase_str = f"[{style}]queued[/{style}]"
 
-        # ── Time column ────────────────────────────────────────────────
+        # Time column
         elapsed = snap["elapsed"]
-        if elapsed > 0:
-            mins, secs = divmod(elapsed, 60)
-            elapsed_str = f"[{C['muted']}]{int(mins):02d}:{secs:04.1f}[/{C['muted']}]"
-        else:
-            elapsed_str = f"[{C['muted']}]  ·  [/{C['muted']}]"
+        elapsed_str = f"[dim]{elapsed:6.1f}s[/dim]" if elapsed else "[dim]      [/dim]"
 
         tbl.add_row(
-            f"[{style}]{icon}[/{style}]",
+            icon,
             f"[{style}]{snap['name']}[/{style}]",
             cam_str,
-            status_str,
+            phase_str,
             elapsed_str,
         )
 
-    # ── Footer ─────────────────────────────────────────────────────────
-    n_done = sum(1 for s in statuses if s.snapshot()["state"] == "done")
-    n_err = sum(1 for s in statuses if s.snapshot()["state"] == "error")
+    # Footer caption
     n_active = sum(1 for s in statuses if s.snapshot()["state"] in ("pose", "smoothing"))
+    n_done   = sum(1 for s in statuses if s.snapshot()["state"] == "done")
+    n_err    = sum(1 for s in statuses if s.snapshot()["state"] == "error")
 
-    parts = [
-        f"[{C['muted']}]folders[/{C['muted']}] [{C['done']}]{n_done}[/{C['done']}][{C['muted']}]/{len(statuses)}[/{C['muted']}]",
-        f"[{C['muted']}]active[/{C['muted']}] [{C['pose']}]{n_active}[/{C['pose']}]",
-    ]
-    if total_vids_active > 0:
-        parts.append(
-            f"[{C['accent']}]{total_vids_active} video{'s' if total_vids_active != 1 else ''} processing now[/{C['accent']}]"
-        )
-    if n_err:
-        parts.append(f"[{C['error']}]{n_err} error{'s' if n_err != 1 else ''}[/{C['error']}]")
-
-    tbl.caption = Text.from_markup("  ·  ".join(parts))
+    tbl.caption = Text.from_markup(
+        f"[dim]Active:[/dim] [cyan]{n_active}[/cyan]  "
+        f"[dim]Done:[/dim] [green]{n_done}/{len(statuses)}[/green]  "
+        f"[dim]Errors:[/dim] [red]{n_err}[/red]"
+    )
     return tbl
 
 
@@ -663,25 +695,8 @@ def run_batch(
     if HAS_RICH:
         console = Console()
         console.print()
-        console.print(Panel.fit(
-            f"[bold]BATCH 2D POSE ESTIMATION[/bold]\n"
-            f"[{C['muted']}]MediaPipe Pose  ·  Butterworth Smooth[/{C['muted']}]",
-            border_style=C["accent"],
-            padding=(1, 4),
-        ))
-        console.print()
-        console.print(f"  [{C['muted']}]root[/{C['muted']}]          {root_dir}")
-        console.print(f"  [{C['muted']}]pattern[/{C['muted']}]       {pattern}")
-        console.print(f"  [{C['muted']}]model[/{C['muted']}]         {model_label} (complexity={model_complexity})")
-        console.print(f"  [{C['muted']}]detection[/{C['muted']}]     {min_detection_confidence}")
-        console.print(f"  [{C['muted']}]tracking[/{C['muted']}]      {min_tracking_confidence}")
-        console.print(f"  [{C['muted']}]labeled vid[/{C['muted']}]   {'yes' if save_labeled_videos else 'no'}")
-        if do_smooth:
-            console.print(f"  [{C['muted']}]smoothing[/{C['muted']}]     butterworth {cutoff_freq} Hz, order {filter_order}, fs={sampling_freq} Hz")
-        else:
-            console.print(f"  [{C['muted']}]smoothing[/{C['muted']}]     disabled")
-        console.print(f"  [{C['muted']}]workers[/{C['muted']}]       {n_workers} folder(s)  ·  {cam_workers or 'auto'} cam(s)/folder")
-        console.print()
+        console.print(f"[bold]Batch 2D Pose Estimation[/bold]")
+        console.print(f"[dim]{config_line}[/dim]\n")
     else:
         print(f"\n  BATCH 2D POSE ESTIMATION")
         print(f"  {config_line}\n")
@@ -690,14 +705,14 @@ def run_batch(
     folders, skipped = discover_folders(root_dir, pattern, video_subdir)
 
     if skipped:
-        msg = f"  {len(skipped)} subfolder(s) skipped:"
+        msg = f"⚠  {len(skipped)} subfolder(s) skipped (unexpected layout):"
         if HAS_RICH:
-            console.print(f"[{C['accent']}]{msg}[/{C['accent']}]")
+            console.print(f"[yellow]{msg}[/yellow]")
             for folder, reason in skipped:
-                console.print(f"    [{C['muted']}]✗  {folder.name}/  —  {reason}[/{C['muted']}]")
+                console.print(f"  [dim]✗  {folder.name}/  —  {reason}[/dim]")
             console.print()
         else:
-            print(msg)
+            print(f"  {msg}")
             for folder, reason in skipped:
                 print(f"    ✗  {folder.name}/  —  {reason}")
             print()
@@ -712,20 +727,19 @@ def run_batch(
     folder_cam_counts = {}
     for f in folders:
         vdir = f / video_subdir
-        n = len(list(vdir.glob("*.mp4")) + list(vdir.glob("*.avi")) + list(vdir.glob("*.mov")))
+        n = len([
+            v for v in (list(vdir.glob("*.mp4")) + list(vdir.glob("*.avi")) + list(vdir.glob("*.mov")))
+            if not _is_macos_tempfile(v)
+        ])
         folder_cam_counts[f] = n
 
     total_videos = sum(folder_cam_counts.values())
 
     if HAS_RICH:
-        console.print(
-            f"  [{C['done']}]✓[/{C['done']}]  "
-            f"[bold]{len(folders)}[/bold] folder(s)  ·  "
-            f"[bold]{total_videos}[/bold] total videos\n"
-        )
+        console.print(f"✓  Found [bold]{len(folders)}[/bold] valid folder(s), [bold]{total_videos}[/bold] total videos\n")
         for f in folders:
             n = folder_cam_counts[f]
-            console.print(f"    [{C['muted']}]╸[/{C['muted']}] {f.name}  [{C['muted']}]({n} video{'s' if n != 1 else ''})[/{C['muted']}]")
+            console.print(f"     {f.name}/  [dim]({n} video{'s' if n != 1 else ''})[/dim]")
         console.print()
     else:
         print(f"  ✓  Found {len(folders)} folder(s), {total_videos} total videos\n")
@@ -803,37 +817,26 @@ def run_batch(
     err = len(all_results) - ok
     total_warnings = sum(len(r.warnings) for r in all_results)
 
-    if HAS_RICH:
-        console.print()
-        border = C["done"] if err == 0 else C["error"]
-        console.print(Panel.fit(
-            f"[bold]COMPLETE[/bold]    "
-            f"[{C['done']}]{ok} succeeded[/{C['done']}]    "
-            f"[{C['error']}]{err} failed[/{C['error']}]    "
-            f"[{C['muted']}]{total_warnings} warnings[/{C['muted']}]\n"
-            f"[{C['muted']}]summary csv  →  {csv_path}[/{C['muted']}]",
-            border_style=border,
-            padding=(1, 3),
-        ))
+    print("\n" + "═" * 60)
+    print(f"  Batch complete:  {ok} succeeded,  {err} failed,  {total_warnings} warnings")
+    print(f"  Summary CSV:     {csv_path}")
+    print("═" * 60)
 
-        if total_warnings:
-            console.print(f"\n  [{C['accent']}]Warnings[/{C['accent']}]")
-            for r in all_results:
-                if r.warnings:
-                    console.print(f"\n    [{C['muted']}]{r.folder.name}/[/{C['muted']}]")
-                    for w in r.warnings:
-                        console.print(f"      [{C['accent']}]⚠[/{C['accent']}]  {w}")
+    if err:
+        print("\nFailed folders:")
+        for r in all_results:
+            if not r.ok:
+                print(f"  • {r.folder.name}:  {r.error}")
+        print()
 
-        if err:
-            console.print(f"\n  [{C['error']}]Errors[/{C['error']}]")
-            for r in all_results:
-                if not r.ok:
-                    console.print(f"    [{C['error']}]✗[/{C['error']}]  {r.folder.name}: {r.error}")
-
-        console.print()
-    else:
-        print(f"\n  Complete: {ok} succeeded, {err} failed, {total_warnings} warnings")
-        print(f"  Summary CSV: {csv_path}\n")
+    if total_warnings:
+        print("Warnings:")
+        for r in all_results:
+            if r.warnings:
+                print(f"  {r.folder.name}/")
+                for w in r.warnings:
+                    print(f"    ⚠  {w}")
+        print()
 
     # Restore logging if we suppressed it
     if not verbose:
