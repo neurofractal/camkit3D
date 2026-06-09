@@ -317,13 +317,17 @@ class Pose3DProjector:
         keypoints = {}
         
         for npy_file in self.keypoints_dir.glob("*_keypoints.npy"):
+            if npy_file.name.startswith("._"):
+                logger.debug(f"Skipping macOS metadata file: {npy_file.name}")
+                continue
+            
             camera_name = npy_file.stem.replace("_keypoints", "")
-            data = np.load(npy_file)
+            data = np.load(npy_file, allow_pickle=True)
             keypoints[camera_name] = data
             logger.info(f"Loaded {camera_name}: shape {data.shape}")
         
         return keypoints
-    
+            
     def _validate_data(self):
         """Validate that cameras and keypoints match."""
         camera_names = set(self.cameras.keys())
