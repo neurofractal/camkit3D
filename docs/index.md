@@ -6,9 +6,11 @@
   </a>
 </p>
 
-**Multi-camera 3D pose estimation pipeline for naturalistic behaviour research.**
+**Multi-camera 3D pose estimation pipeline for naturalistic behavioural and neuroscience applications.**
 
-CamKit3D turns a set of cheap USB webcams into a markerless motion-capture system. It handles the full journey from raw video to 3D skeleton data: recording, temporal synchronisation, 2D pose estimation, triangulation, and visualisation.
+CamKit3D turns a set of USB webcams into a markerless motion-capture system. It handles the full pipeline: recording, temporal synchronisation, 2D pose estimation, triangulation, analysis and visualisation.
+
+The code can be used as a stand-alone package or integrated alongside wearable brain imaging analyses.
 
 ---
 
@@ -16,12 +18,12 @@ CamKit3D turns a set of cheap USB webcams into a markerless motion-capture syste
 
 - New here? Start with [Installation](installation.md), then the [Pipeline Overview](pipeline/index.md).
 - Want to run the whole thing end-to-end? See the [End-to-end Walkthrough](tutorials/end-to-end.md).
-- Processing many trials? See [Batch Processing](batch-processing.md).
+- Processing many videos? See [Batch Processing](batch-processing.md).
 - Setting up cameras? See [Camera Calibration](tutorials/calibration.md).
 
 ## What CamKit3D does
 
-The pipeline is organised as five sequential stages. Each stage reads the output of the previous one, so you can re-run any step independently.
+The pipeline is organised as five sequential stages, but you can also use the scripts independtly if your data is organised correctly.
 
 | Stage | Module | Purpose |
 |---|---|---|
@@ -37,6 +39,10 @@ The pipeline is organised as five sequential stages. Each stage reads the output
 - [Anipose](https://anipose.readthedocs.io/) for triangulation methodology
 - [FreeMoCap](https://freemocap.org/) for calibration format and inspiration
 
+## Citation
+
+Seymour, R. A., Hill, R., Brookes, M. J., & Woolrich, M. W. (in preparation). *Markerless 3D Motion Capture for Wearable OPM-MEG*.
+
 ## License
 
-MIT — see [LICENSE](https://github.com/neurofractal/camkit3D/blob/main/LICENSE) for details.
+GNU v3.0 — see [LICENSE](https://github.com/neurofractal/camkit3D/blob/main/LICENSE) for details.
