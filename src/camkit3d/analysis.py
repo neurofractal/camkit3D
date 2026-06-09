@@ -705,6 +705,12 @@ def animate_3d_pose(
 
     x_range, y_range, z_range = _compute_bounds(points_3d)
 
+    ranges = np.array([x_range[1] - x_range[0],
+                   y_range[1] - y_range[0],
+                   z_range[1] - z_range[0]])
+    
+    box_aspect = ranges if ranges.min() > 0 else [1, 1, 1]
+
     view_presets = {
         "front": {"elev": 0, "azim": 0},
         "side": {"elev": 0, "azim": 90},
@@ -721,6 +727,7 @@ def animate_3d_pose(
     def init():
         ax.clear()
         ax.set_xlim(x_range); ax.set_ylim(y_range); ax.set_zlim(z_range)
+        ax.set_box_aspect(box_aspect)   # <-- add this line in both places
         if show_axes:
             ax.set_xlabel("X (mm)", fontsize=10, labelpad=10)
             ax.set_ylabel("Y (mm)", fontsize=10, labelpad=10)
@@ -735,6 +742,7 @@ def animate_3d_pose(
     def update(frame_num):
         ax.clear()
         ax.set_xlim(x_range); ax.set_ylim(y_range); ax.set_zlim(z_range)
+        ax.set_box_aspect(box_aspect)   # <-- add this line in both places
 
         if show_axes:
             ax.set_xlabel("X (mm)", fontsize=10, labelpad=10)
@@ -1173,6 +1181,13 @@ def interactive_pose_viewer(
         ax.set_xlim(x_range)
         ax.set_ylim(y_range)
         ax.set_zlim(z_range)
+
+        # Make the 3D box match the real-world proportions
+        ranges = np.array([x_range[1] - x_range[0],
+                        y_range[1] - y_range[0],
+                        z_range[1] - z_range[0]])
+        ax.set_box_aspect(ranges if ranges.min() > 0 else [1, 1, 1])
+
         ax.set_xlabel("X (mm)", fontsize=9, labelpad=8)
         ax.set_ylabel("Y (mm)", fontsize=9, labelpad=8)
         ax.set_zlabel("Z (mm)", fontsize=9, labelpad=8)
