@@ -46,6 +46,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Installation: installation.md
+  - 3D Calibration Guide: calibration.md
   - Pipeline:
       - Overview: pipeline/index.md
       - "Stage 1 — Recording": pipeline/recording.md
@@ -57,6 +58,7 @@ nav:
       - Overview: tutorials/index.md
       - Missing Data: tutorials/missing_data.md
       - End-to-end Walkthrough: tutorials/end-to-end.md
-  - Batch Processing: batch-processing.md
-  - Hardware: hardware.md
-  - Validation: validation.md
+  - Other:
+      - Batch Processing: batch-processing.md
+      - Hardware: hardware.md
+      - Validation: validation.md
