@@ -2,7 +2,7 @@
 
 `camkit3d.pose3d`
 
-Projects the 2D keypoints from all cameras into 3D world coordinates using the Direct Linear Transform (DLT). Requires a camera calibration file in TOML format containing each camera's intrinsic matrix, distortion coefficients, and extrinsic rotation/translation. Reprojection error is computed for every keypoint on every frame as a quality metric.
+Projects the 2D keypoints from all cameras into 3D world coordinates using the Direct Linear Transform (DLT). Requires a camera calibration file in TOML format containing each camera's intrinsic matrix, distortion coefficients, and extrinsic rotation/translation. Reprojection error is computed for every keypoint on every frame and can be used as a quality metric.
 
 ```python
 from camkit3d import Pose3DProjector

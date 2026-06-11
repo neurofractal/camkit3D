@@ -14,12 +14,18 @@ from camkit3d import (
 
 import numpy as np
 points_3d = np.load("data_3d/pose_3d.npy")
+```
 
-# Inspect reprojection quality
+### Reprojection Quality
 plot_reprojection_errors(metrics, output_path="reproj_errors.png")
 
-# Auto-orient and animate
+### Auto-orient
 orientation = detect_person_orientation(points_3d)
 aligned = align_pose_to_standard_frame(points_3d, orientation)
+
+### Interpolate Missing Data
+
+
+### Plotting
 animate_3d_pose_auto_orient(aligned, output_path="skeleton.mp4", fps=30)
-```
+

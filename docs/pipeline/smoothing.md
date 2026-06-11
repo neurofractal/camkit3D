@@ -1,6 +1,8 @@
 # Smoothing strategy
 
-The recommended approach is **smooth 2D → triangulate → (optional) light 3D smoothing**. Smoothing in 2D first keeps each camera's trajectory internally consistent, gives the DLT cleaner input rays, and makes NaN handling simpler because missing detections can be interpolated per-camera independently.
+Smoothing the mocap data is an important step for reducing high-frequency 'jitter' per frame.
+
+The recommended approach is **smooth each camera's 2D pose data → triangulate (3D) → (optional) light smoothing of the 3D pose**. Smoothing in 2D first keeps each camera's trajectory internally consistent, gives the DLT cleaner input rays, and makes NaN handling simpler because missing detections can be interpolated per-camera independently.
 
 | Filter | When | Purpose | Typical parameters |
 |---|---|---|---|

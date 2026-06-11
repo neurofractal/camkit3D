@@ -51,13 +51,12 @@ nav:
       - "Stage 1 — Recording": pipeline/recording.md
       - "Stage 2 — Synchronisation": pipeline/synchronisation.md
       - "Stage 3 — 2D Pose": pipeline/pose2d.md
-      - "Stage 4 — Triangulation": pipeline/triangulation.md
+      - "Stage 4 — 3D Triangulation": pipeline/triangulation.md
       - "Stage 5 — Analysis & Animation": pipeline/analysis.md
-      - Smoothing Strategy: pipeline/smoothing.md
   - Tutorials:
       - Overview: tutorials/index.md
-      - Camera Calibration: tutorials/calibration.md
+      - Missing Data: tutorials/missing_data.md
       - End-to-end Walkthrough: tutorials/end-to-end.md
   - Batch Processing: batch-processing.md
-  - Examples: examples/index.md
+  - Hardware: hardware.md
   - Validation: validation.md
