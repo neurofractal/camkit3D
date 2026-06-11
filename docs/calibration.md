@@ -9,15 +9,17 @@
 For detailed instructions see: [https://docs.freemocap.org/documentation/multi-camera-calibration.html](https://docs.freemocap.org/documentation/multi-camera-calibration.html)
 
 **Workflow:**
-- Record a multi-camera ~90s video using CamKit3D 
-- Sycnronise the videos using CamKit3D
-- Open Freemocap --> Point to the sychronised video files
-- Perform Calibration --> TOML file
 
-!!! note "Recording a calbiration video"
+- Record a multi-camera ~90s video using CamKit3D
+- Synchronise the videos using CamKit3D
+- Open FreeMoCap → point to the synchronised video files
+- Perform calibration → TOML file
+
+!!! note "Recording a calibration video"
     It is vital you record a **high-quality calibration video**. Tips:
+
     - Record at least 90s of data
-    - Move the Charuco Board slowly
+    - Move the ChArUco board slowly
     - Move the board forwards and back, tilt in all axes
 
 ### TOML File
