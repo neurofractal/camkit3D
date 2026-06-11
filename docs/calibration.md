@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="images/charuco_board_5x3.png">
-    <img src="images/charuco_board_5x3.png" width="250">
+    <img src="images/charuco_board_5x3.png" alt="5x3 ChArUco board" width="250">
   </a>
 </p>
 * Example CHARUCO Board *
