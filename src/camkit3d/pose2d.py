@@ -10,11 +10,6 @@ This module processes synchronized multi-camera videos using MediaPipe Pose to:
 Author: CamKit3D (FreeMoCap-compatible workflow)
 Date: 2026-02-06
 
-Performance optimizations (2026-02-11):
-- Parallel video processing across cameras using multiprocessing
-- Pre-allocated numpy arrays instead of list appending
-- Writeable flag on RGB conversion to avoid copy
-- Configurable model_complexity for speed/accuracy trade-off
 """
 
 import cv2
@@ -33,7 +28,14 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 import time
 import queue
+
+from camkit3d import skeletons as _skeletons
 import threading
+
+# Module-level default skeleton. Hoisted here (not just on the class) so that
+# comprehensions inside the class body can reference it — class-body scope is
+# not visible to comprehension/generator scopes, but module scope is.
+_SKELETON = _skeletons.load()  # mediapipe_pose
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -131,7 +133,7 @@ def _process_single_video_worker(
         )
 
     # ── Pre-allocate arrays (avoids repeated list.append + final np.array copy) ──
-    n_landmarks = 33
+    n_landmarks = 33  # fixed by MediaPipe Pose (BlazePose) — matches mediapipe_pose descriptor
     keypoints_array = np.zeros((total_frames, n_landmarks, 3), dtype=np.float32)
     confidences_list: List[float] = []
     frames_with_detection = 0
@@ -288,60 +290,41 @@ class PoseProcessor:
         ...     print(metric)
     """
     
-    # MediaPipe Pose landmark names (33 landmarks)
-    MEDIAPIPE_LANDMARK_NAMES = [
-        'nose', 'left_eye_inner', 'left_eye', 'left_eye_outer',
-        'right_eye_inner', 'right_eye', 'right_eye_outer',
-        'left_ear', 'right_ear', 'mouth_left', 'mouth_right',
-        'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
-        'left_wrist', 'right_wrist', 'left_pinky', 'right_pinky',
-        'left_index', 'right_index', 'left_thumb', 'right_thumb',
-        'left_hip', 'right_hip', 'left_knee', 'right_knee',
-        'left_ankle', 'right_ankle', 'left_heel', 'right_heel',
-        'left_foot_index', 'right_foot_index'
-    ]
-    
-    # Landmark groups for filtering
-    FACE_LANDMARKS = list(range(0, 11))  # 0-10: face landmarks
-    SHOULDER_LANDMARKS = [11, 12]  # left_shoulder, right_shoulder
-    ARM_LANDMARKS = [13, 14, 15, 16]  # elbows and wrists
-    HAND_LANDMARKS = [17, 18, 19, 20, 21, 22]  # hand keypoints
-    HIP_LANDMARKS = [23, 24]  # left_hip, right_hip
-    LEG_LANDMARKS = [25, 26, 27, 28]  # knees and ankles
-    FOOT_LANDMARKS = [29, 30, 31, 32]  # heels and foot indices
-    
-    # Landmarks to keep (upper body)
-    KEEP_LANDMARKS = (
-        FACE_LANDMARKS + 
-        SHOULDER_LANDMARKS + 
-        ARM_LANDMARKS + 
-        HAND_LANDMARKS
-    )
-    
-    # Landmarks to remove (hips and below)
-    REMOVE_LANDMARKS = (
-        HIP_LANDMARKS + 
-        LEG_LANDMARKS + 
-        FOOT_LANDMARKS
-    )
-    
-    # Skeleton connections for drawing
-    SKELETON_CONNECTIONS = [
-        # Face
-        (0, 1), (1, 2), (2, 3), (3, 7),
-        (0, 4), (4, 5), (5, 6), (6, 8),
-        (9, 10),
-        # Torso
-        (11, 12), (11, 23), (12, 24), (23, 24),
-        # Left arm
-        (11, 13), (13, 15), (15, 17), (15, 19), (15, 21),
-        # Right arm
-        (12, 14), (14, 16), (16, 18), (16, 20), (16, 22),
-        # Left leg
-        (23, 25), (25, 27), (27, 29), (27, 31),
-        # Right leg
-        (24, 26), (26, 28), (28, 30), (28, 32),
-    ]
+    # ── Skeleton topology (from the skeleton descriptor) ──
+    # pose2d runs MediaPipe inference, so its default skeleton is MediaPipe
+    # Pose. These class attributes are derived from the descriptor so the
+    # topology lives in one place. To process with a different skeleton,
+    # subclass and set SKELETON, or call set_skeleton() before instantiating.
+    SKELETON = _skeletons.load()  # mediapipe_pose
+
+    MEDIAPIPE_LANDMARK_NAMES = SKELETON.names
+
+    # Landmark groups for filtering (resolved by group / anchor)
+    FACE_LANDMARKS = list(SKELETON.group_indices("face"))
+    HAND_LANDMARKS = list(SKELETON.group_indices("hand"))
+    SHOULDER_LANDMARKS = [SKELETON.anchor("left_shoulder"),
+                          SKELETON.anchor("right_shoulder")]
+    HIP_LANDMARKS = [SKELETON.anchor("left_hip"), SKELETON.anchor("right_hip")]
+    # Arm = arm-group members that aren't shoulders or hands
+    _arm_all = set(SKELETON.group_indices("left_arm")) | set(SKELETON.group_indices("right_arm"))
+    ARM_LANDMARKS = sorted(_arm_all - set(SHOULDER_LANDMARKS) - set(HAND_LANDMARKS))
+    # Leg = leg-group members that aren't hips; foot = heels + foot indices
+    _leg_all = sorted((set(SKELETON.group_indices("left_leg"))
+                       | set(SKELETON.group_indices("right_leg"))) - set(HIP_LANDMARKS))
+    _foot_names = ("left_heel", "right_heel", "left_foot_index", "right_foot_index")
+    FOOT_LANDMARKS = sorted(_SKELETON.index_of(_n) for _n in _foot_names
+                            if _n in _SKELETON.names)
+    LEG_LANDMARKS = sorted(set(_leg_all) - set(FOOT_LANDMARKS))
+
+    # Landmarks to keep (upper body) / remove (hips and below)
+    KEEP_LANDMARKS = sorted(set(FACE_LANDMARKS) | set(SHOULDER_LANDMARKS)
+                            | set(ARM_LANDMARKS) | set(HAND_LANDMARKS))
+    REMOVE_LANDMARKS = sorted(set(HIP_LANDMARKS) | set(LEG_LANDMARKS) | set(FOOT_LANDMARKS))
+
+    # Skeleton connections for drawing (kept for reference / non-MediaPipe
+    # overlays; the labelled-video overlay below uses MediaPipe's own
+    # POSE_CONNECTIONS styling).
+    SKELETON_CONNECTIONS = SKELETON.edges
     
     def __init__(
         self,

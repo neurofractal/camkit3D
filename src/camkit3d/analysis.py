@@ -48,50 +48,49 @@ warnings.filterwarnings("ignore")
 
 
 # ============================================================================
-# MediaPipe 33-keypoint skeleton (shared across all functions)
+# Skeleton topology (loaded from the skeleton descriptor)
 # ============================================================================
+#
+# The default skeleton is MediaPipe Pose. To analyse data from a different
+# skeleton, call set_skeleton("<id>") once at the top of your script/notebook,
+# or pass skeleton=<PoseDefinition> to the public functions that accept it.
 
-SKELETON_CONNECTIONS = [
-    # Face
-    (0, 1), (1, 2), (2, 3), (3, 7),
-    (0, 4), (4, 5), (5, 6), (6, 8),
-    (9, 10),
-    # Torso
-    (11, 12), (11, 23), (12, 24), (23, 24),
-    # Left arm
-    (11, 13), (13, 15), (15, 17), (15, 19), (15, 21),
-    # Right arm
-    (12, 14), (14, 16), (16, 18), (16, 20), (16, 22),
-    # Left leg
-    (23, 25), (25, 27), (27, 29), (27, 31),
-    # Right leg
-    (24, 26), (26, 28), (28, 30), (28, 32),
-]
+from camkit3d import skeletons
+from camkit3d.skeletons import PoseDefinition
 
-BODY_PART_COLORS = {
-    "face": "#FF6B6B",
-    "torso": "#4ECDC4",
-    "left_arm": "#45B7D1",
-    "right_arm": "#96CEB4",
-    "left_leg": "#FFEAA7",
-    "right_leg": "#DDA15E",
-}
+_SKELETON: PoseDefinition = skeletons.load()  # mediapipe_pose by default
 
 
-def _connection_color(start, end):
-    """Return a hex colour for a skeleton connection."""
-    if start <= 10 and end <= 10:
-        return BODY_PART_COLORS["face"]
-    if (start, end) in {(11, 12), (11, 23), (12, 24), (23, 24)}:
-        return BODY_PART_COLORS["torso"]
-    if start in {11, 13, 15, 17, 19, 21} and end in {11, 13, 15, 17, 19, 21}:
-        return BODY_PART_COLORS["left_arm"]
-    if start in {12, 14, 16, 18, 20, 22} and end in {12, 14, 16, 18, 20, 22}:
-        return BODY_PART_COLORS["right_arm"]
-    if start in {23, 25, 27, 29, 31} and end in {23, 25, 27, 29, 31}:
-        return BODY_PART_COLORS["left_leg"]
-    if start in {24, 26, 28, 30, 32} and end in {24, 26, 28, 30, 32}:
-        return BODY_PART_COLORS["right_leg"]
+def set_skeleton(skeleton):
+    """Set the module-default skeleton used by drawing/orientation helpers.
+
+    Parameters
+    ----------
+    skeleton : str or PoseDefinition
+        Skeleton id (filename stem, e.g. "mediapipe_pose") or an already
+        loaded PoseDefinition.
+    """
+    global _SKELETON
+    _SKELETON = (skeleton if isinstance(skeleton, PoseDefinition)
+                 else skeletons.load(skeleton))
+    return _SKELETON
+
+
+def _resolve(skeleton):
+    """Return a PoseDefinition from a str/PoseDefinition/None argument."""
+    if skeleton is None:
+        return _SKELETON
+    if isinstance(skeleton, PoseDefinition):
+        return skeleton
+    return skeletons.load(skeleton)
+
+
+def _connection_color(start, end, skeleton=None):
+    """Hex colour for a skeleton edge, from the skeleton's group colours."""
+    pose = _resolve(skeleton)
+    for c in pose.connections:
+        if (c.start, c.end) == (start, end) or (c.end, c.start) == (start, end):
+            return pose.groups[c.group].color if c.group in pose.groups else "#888888"
     return "#888888"
 
 
@@ -114,13 +113,19 @@ def _hide_axes_3d(ax):
     ax.grid(False)
 
 
-def _draw_skeleton_on_ax(ax, pose, keypoint_size=50, line_width=2.5):
-    """Draw skeleton connections + keypoints onto a 3D axes."""
-    for conn in SKELETON_CONNECTIONS:
-        sp, ep = pose[conn[0]], pose[conn[1]]
+def _draw_skeleton_on_ax(ax, pose, keypoint_size=50, line_width=2.5, skeleton=None):
+    """Draw skeleton connections + keypoints onto a 3D axes.
+
+    `pose` is the (n_keypoints, 3) array of points for one frame; `skeleton`
+    is the topology (defaults to the module skeleton).
+    """
+    skel = _resolve(skeleton)
+    for c in skel.connections:
+        sp, ep = pose[c.start], pose[c.end]
         if not (np.any(np.isnan(sp)) or np.any(np.isnan(ep))):
+            color = skel.groups[c.group].color if c.group in skel.groups else "#888888"
             ax.plot3D([sp[0], ep[0]], [sp[1], ep[1]], [sp[2], ep[2]],
-                      color=_connection_color(*conn), linewidth=line_width, alpha=0.8)
+                      color=color, linewidth=line_width, alpha=0.8)
     vmask = ~np.isnan(pose).any(axis=1)
     if vmask.any():
         vp = pose[vmask]
@@ -230,7 +235,7 @@ def plot_reprojection_errors(
 # 2. AUTO-ORIENTATION DETECTION
 # ============================================================================
 
-def detect_person_orientation(points_3d, frame_range=None):
+def detect_person_orientation(points_3d, frame_range=None, skeleton=None):
     """
     Detect which way is "up" and which direction the person is facing.
 
@@ -238,13 +243,29 @@ def detect_person_orientation(points_3d, frame_range=None):
     ----------
     points_3d : np.ndarray - (n_frames, n_keypoints, 3)
     frame_range : tuple, optional - (start, end) slice
+    skeleton : str or PoseDefinition, optional
+        Skeleton providing the anatomy anchors (nose, shoulders, hips,
+        ankles). Defaults to the module skeleton. Raises if the skeleton
+        lacks the required anchors.
 
     Returns
     -------
     dict with keys: up_vector, forward_vector, right_vector,
          rotation_matrix, ground_plane_z, up_axis, forward_axis
     """
-    NOSE, L_SH, R_SH, L_HIP, R_HIP, L_ANK, R_ANK = 0, 11, 12, 23, 24, 27, 28
+    skel = _resolve(skeleton)
+    required = ("nose", "left_shoulder", "right_shoulder",
+                "left_hip", "right_hip", "left_ankle", "right_ankle")
+    if not skel.has_anchors(*required):
+        missing = [r for r in required if r not in skel.anatomy]
+        raise KeyError(
+            f"detect_person_orientation requires anatomy anchors {missing} "
+            f"which skeleton '{skel.skeleton_id}' does not define."
+        )
+    NOSE = skel.anchor("nose")
+    L_SH, R_SH = skel.anchor("left_shoulder"), skel.anchor("right_shoulder")
+    L_HIP, R_HIP = skel.anchor("left_hip"), skel.anchor("right_hip")
+    L_ANK, R_ANK = skel.anchor("left_ankle"), skel.anchor("right_ankle")
 
     if frame_range is None:
         n = points_3d.shape[0]
@@ -359,22 +380,26 @@ def get_optimal_camera_angles(orientation_info):
 # 3. VISUALIZE ORIENTATION (two-panel diagnostic plot)
 # ============================================================================
 
-def visualize_orientation(points_3d, orientation, camera_angles, output_path=None, frame_idx=None):
+def visualize_orientation(points_3d, orientation, camera_angles, output_path=None,
+                          frame_idx=None, skeleton=None):
     """
     Two-panel plot: LEFT = diagonal with orientation arrows, RIGHT = front view.
 
     Returns matplotlib.figure.Figure
     """
+    skel = _resolve(skeleton)
     if frame_idx is None:
         frame_idx = points_3d.shape[0] // 2
     frame = points_3d[frame_idx]
 
-    # Body centre
-    l_hip, r_hip = frame[23], frame[24]
-    l_sh, r_sh = frame[11], frame[12]
-    if not np.any(np.isnan([l_hip, r_hip, l_sh, r_sh])):
-        body_center = ((l_hip + r_hip) / 2 + (l_sh + r_sh) / 2) / 2
-    else:
+    # Body centre (mean of hip-midpoint and shoulder-midpoint), with fallback
+    body_center = None
+    if skel.has_anchors("left_hip", "right_hip", "left_shoulder", "right_shoulder"):
+        l_hip, r_hip = frame[skel.anchor("left_hip")], frame[skel.anchor("right_hip")]
+        l_sh, r_sh = frame[skel.anchor("left_shoulder")], frame[skel.anchor("right_shoulder")]
+        if not np.any(np.isnan([l_hip, r_hip, l_sh, r_sh])):
+            body_center = ((l_hip + r_hip) / 2 + (l_sh + r_sh) / 2) / 2
+    if body_center is None:
         valid_pts = frame[~np.isnan(frame).any(axis=1)]
         body_center = np.mean(valid_pts, axis=0)
 
@@ -394,12 +419,9 @@ def visualize_orientation(points_3d, orientation, camera_angles, output_path=Non
     mid_y = (valid_all[1::3].max() + valid_all[1::3].min()) * 0.5
     mid_z = (valid_all[2::3].max() + valid_all[2::3].min()) * 0.5
 
-    # Simplified skeleton connections for this plot
-    connections = [
-        (11, 12), (11, 23), (12, 24), (23, 24),
-        (11, 13), (13, 15), (12, 14), (14, 16),
-        (23, 25), (25, 27), (24, 26), (26, 28),
-    ]
+    # Simplified skeleton connections for this diagnostic plot: drop the
+    # dense face mesh, keep torso + limbs.
+    connections = [(c.start, c.end) for c in skel.connections if c.group != "face"]
     valid_mask = ~np.isnan(frame).any(axis=1)
     valid_pts = frame[valid_mask]
 
@@ -526,6 +548,7 @@ def plot_aligned_skeleton(
     elev=0,
     azim=90,
     title_suffix="",
+    skeleton=None,
 ):
     """
     Static 3D skeleton plot - works inline (Agg backend) or in Jupyter.
@@ -545,6 +568,7 @@ def plot_aligned_skeleton(
     if frame_idx is None:
         frame_idx = points_3d_aligned.shape[0] // 2
     frame = points_3d_aligned[frame_idx]
+    skel = _resolve(skeleton)
 
     valid_mask = ~np.isnan(frame).any(axis=1)
     valid_pts = frame[valid_mask]
@@ -560,11 +584,12 @@ def plot_aligned_skeleton(
     ax = fig.add_subplot(111, projection="3d")
 
     # Skeleton
-    for s, e in SKELETON_CONNECTIONS:
-        sp, ep = frame[s], frame[e]
+    for c in skel.connections:
+        sp, ep = frame[c.start], frame[c.end]
         if not (np.any(np.isnan(sp)) or np.any(np.isnan(ep))):
+            color = skel.groups[c.group].color if c.group in skel.groups else "#888888"
             ax.plot3D([sp[0], ep[0]], [sp[1], ep[1]], [sp[2], ep[2]],
-                      color=_connection_color(s, e), linewidth=3, alpha=0.8)
+                      color=color, linewidth=3, alpha=0.8)
 
     # Keypoints
     ax.scatter(valid_pts[:, 0], valid_pts[:, 1], valid_pts[:, 2],
@@ -572,11 +597,13 @@ def plot_aligned_skeleton(
                linewidths=2, depthshade=True)
 
     # Body-centre axes
-    mid_hip = (frame[23] + frame[24]) / 2
-    mid_sh = (frame[11] + frame[12]) / 2
-    if not np.any(np.isnan([mid_hip, mid_sh])):
-        center = (mid_hip + mid_sh) / 2
-    else:
+    center = None
+    if skel.has_anchors("left_hip", "right_hip", "left_shoulder", "right_shoulder"):
+        mid_hip = (frame[skel.anchor("left_hip")] + frame[skel.anchor("right_hip")]) / 2
+        mid_sh = (frame[skel.anchor("left_shoulder")] + frame[skel.anchor("right_shoulder")]) / 2
+        if not np.any(np.isnan([mid_hip, mid_sh])):
+            center = (mid_hip + mid_sh) / 2
+    if center is None:
         center = np.nanmean(valid_pts, axis=0)
 
     axis_len = max(ranges) * 0.5
@@ -607,12 +634,8 @@ def plot_aligned_skeleton(
     ax.grid(True, alpha=0.3)
 
     legend_elements = [
-        Patch(facecolor="#FF6B6B", label="Face"),
-        Patch(facecolor="#4ECDC4", label="Torso"),
-        Patch(facecolor="#45B7D1", label="Left Arm"),
-        Patch(facecolor="#96CEB4", label="Right Arm"),
-        Patch(facecolor="#FFEAA7", label="Left Leg"),
-        Patch(facecolor="#DDA15E", label="Right Leg"),
+        Patch(facecolor=g.color, label=name.replace("_", " ").title())
+        for name, g in skel.groups.items()
     ]
     ax.legend(handles=legend_elements, loc="upper left", fontsize=9)
     plt.tight_layout()
@@ -647,6 +670,7 @@ def animate_3d_pose(
     figure_size=(12, 10),
     dpi=100,
     quality="high",
+    skeleton=None,
 ):
     """
     Create an animated 3D visualization of pose over time.
@@ -777,7 +801,8 @@ def animate_3d_pose(
             _draw_floor(ax, x_range, y_range, z_range)
 
         _draw_skeleton_on_ax(ax, points_3d[frame_num],
-                             keypoint_size=keypoint_size, line_width=line_width)
+                             keypoint_size=keypoint_size, line_width=line_width,
+                             skeleton=skeleton)
 
         if show_frame_number or show_timestamp:
             parts = []
@@ -821,6 +846,7 @@ def animate_3d_pose_auto_orient(
     output_path,
     view_mode="front",
     auto_detect_orientation=True,
+    skeleton=None,
     **kwargs,
 ):
     """
@@ -832,6 +858,7 @@ def animate_3d_pose_auto_orient(
     output_path : str
     view_mode : str - 'front', 'back', 'left_side', 'right_side', 'top', 'diagonal', 'rotating'
     auto_detect_orientation : bool
+    skeleton : str or PoseDefinition, optional - skeleton for anchors/drawing
     **kwargs : forwarded to animate_3d_pose()
 
     Returns
@@ -839,7 +866,7 @@ def animate_3d_pose_auto_orient(
     str - path to saved video
     """
     if auto_detect_orientation:
-        orientation = detect_person_orientation(points_3d)
+        orientation = detect_person_orientation(points_3d, skeleton=skeleton)
         camera_angles = get_optimal_camera_angles(orientation)
 
         print("\n" + "=" * 70)
@@ -861,7 +888,7 @@ def animate_3d_pose_auto_orient(
         else:
             print(f"Warning: Unknown view mode '{view_mode}', using default")
 
-    return animate_3d_pose(points_3d, output_path, **kwargs)
+    return animate_3d_pose(points_3d, output_path, skeleton=skeleton, **kwargs)
 
 
 # ============================================================================
@@ -880,6 +907,7 @@ def animate_3d_pose_multiangle(
     figure_size=(16, 16),
     dpi=100,
     quality="high",
+    skeleton=None,
 ):
     """
     2x2 multi-angle animation (Front, Right, Top, Left). Data must be pre-aligned.
@@ -952,7 +980,8 @@ def animate_3d_pose_multiangle(
         for vn, ai in ax_map.items():
             ax = ai["ax"]; ax.clear()
             _setup_subplot(ax, ai["elev"], ai["azim"], vn)
-            _draw_skeleton_on_ax(ax, pose, keypoint_size=keypoint_size, line_width=line_width)
+            _draw_skeleton_on_ax(ax, pose, keypoint_size=keypoint_size,
+                                 line_width=line_width, skeleton=skeleton)
         fig.suptitle(f"Frame: {frame_num}/{frames_to_animate - 1}  |  Time: {frame_num / fps:.2f}s",
                      fontsize=16, fontweight="bold", y=0.98)
         return []
@@ -987,6 +1016,7 @@ def interactive_pose_viewer(
     initial_view="front",
     show_floor=True,
     window_title="3D Pose Viewer",
+    skeleton=None,
 ):
     """
     Interactive 3D pose viewer with play/pause, timeline scrubbing, and
@@ -1042,33 +1072,18 @@ def interactive_pose_viewer(
     from mpl_toolkits.mplot3d import Axes3D  # noqa
 
     # ------------------------------------------------------------------
-    # Skeleton definition
+    # Skeleton definition (from the skeleton descriptor)
     # ------------------------------------------------------------------
-    CONNECTIONS = [
-        (0, 1), (1, 2), (2, 3), (3, 7),
-        (0, 4), (4, 5), (5, 6), (6, 8),
-        (9, 10),
-        (11, 12), (11, 23), (12, 24), (23, 24),
-        (11, 13), (13, 15), (15, 17), (15, 19), (15, 21),
-        (12, 14), (14, 16), (16, 18), (16, 20), (16, 22),
-        (23, 25), (25, 27), (27, 29), (27, 31),
-        (24, 26), (26, 28), (28, 30), (28, 32),
-    ]
+    skel = _resolve(skeleton)
+    CONNECTIONS = [(c.start, c.end) for c in skel.connections]
+    _edge_color = {
+        (c.start, c.end): (skel.groups[c.group].color
+                           if c.group in skel.groups else "#888888")
+        for c in skel.connections
+    }
 
     def _conn_color(s, e):
-        if s <= 10 and e <= 10:
-            return "#FF6B6B"
-        if (s, e) in {(11, 12), (11, 23), (12, 24), (23, 24)}:
-            return "#4ECDC4"
-        if s in {11, 13, 15, 17, 19, 21} and e in {11, 13, 15, 17, 19, 21}:
-            return "#45B7D1"
-        if s in {12, 14, 16, 18, 20, 22} and e in {12, 14, 16, 18, 20, 22}:
-            return "#96CEB4"
-        if s in {23, 25, 27, 29, 31} and e in {23, 25, 27, 29, 31}:
-            return "#FFEAA7"
-        if s in {24, 26, 28, 30, 32} and e in {24, 26, 28, 30, 32}:
-            return "#DDA15E"
-        return "#888888"
+        return _edge_color.get((s, e), _edge_color.get((e, s), "#888888"))
 
     # ------------------------------------------------------------------
     # Data setup

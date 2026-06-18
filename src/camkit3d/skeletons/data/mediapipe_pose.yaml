@@ -1,0 +1,196 @@
+# ============================================================
+# CamKit3D skeleton descriptor — MediaPipe Pose (BlazePose, 33 kp)
+# ------------------------------------------------------------
+# This file is the single source of truth for the MediaPipe Pose
+# topology. It is loaded via camkit3d.skeletons.load(). Other
+# skeletons (e.g. openpose, hand-only) live as sibling YAMLs in
+# this same folder and are auto-discovered by the registry.
+# ============================================================
+
+metadata:
+  skeleton_id: mediapipe_pose      # registry key (must equal the filename stem)
+  name: MediaPipe Pose (BlazePose)
+  description: Full-body 33-landmark topology from MediaPipe Pose.
+  num_landmarks: 33
+  model: mediapipe.solutions.pose  # or mediapipe.tasks PoseLandmarker
+  source: https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
+  coordinate_system: right-handed; +X right, +Y up, +Z toward camera
+  units: mm
+  schema_version: 1.0
+
+# ── Landmarks ────────────────────────────────────────────────
+# `index` is authoritative and must match MediaPipe's own ordering.
+landmarks:
+  - {index: 0,  name: nose,             group: face,  side: center}
+  - {index: 1,  name: left_eye_inner,   group: face,  side: left}
+  - {index: 2,  name: left_eye,         group: face,  side: left}
+  - {index: 3,  name: left_eye_outer,   group: face,  side: left}
+  - {index: 4,  name: right_eye_inner,  group: face,  side: right}
+  - {index: 5,  name: right_eye,        group: face,  side: right}
+  - {index: 6,  name: right_eye_outer,  group: face,  side: right}
+  - {index: 7,  name: left_ear,         group: face,  side: left}
+  - {index: 8,  name: right_ear,        group: face,  side: right}
+  - {index: 9,  name: mouth_left,       group: face,  side: left}
+  - {index: 10, name: mouth_right,      group: face,  side: right}
+  - {index: 11, name: left_shoulder,    group: torso, side: left}
+  - {index: 12, name: right_shoulder,   group: torso, side: right}
+  - {index: 13, name: left_elbow,       group: arm,   side: left}
+  - {index: 14, name: right_elbow,      group: arm,   side: right}
+  - {index: 15, name: left_wrist,       group: arm,   side: left}
+  - {index: 16, name: right_wrist,      group: arm,   side: right}
+  - {index: 17, name: left_pinky,       group: hand,  side: left}
+  - {index: 18, name: right_pinky,      group: hand,  side: right}
+  - {index: 19, name: left_index,       group: hand,  side: left}
+  - {index: 20, name: right_index,      group: hand,  side: right}
+  - {index: 21, name: left_thumb,       group: hand,  side: left}
+  - {index: 22, name: right_thumb,      group: hand,  side: right}
+  - {index: 23, name: left_hip,         group: torso, side: left}
+  - {index: 24, name: right_hip,        group: torso, side: right}
+  - {index: 25, name: left_knee,        group: leg,   side: left}
+  - {index: 26, name: right_knee,       group: leg,   side: right}
+  - {index: 27, name: left_ankle,       group: leg,   side: left}
+  - {index: 28, name: right_ankle,      group: leg,   side: right}
+  - {index: 29, name: left_heel,        group: leg,   side: left}
+  - {index: 30, name: right_heel,       group: leg,   side: right}
+  - {index: 31, name: left_foot_index,  group: leg,   side: left}
+  - {index: 32, name: right_foot_index, group: leg,   side: right}
+
+# ── Groups ───────────────────────────────────────────────────
+# Semantic groupings used for colouring, filtering and per-group
+# triangulation thresholds. `confidence_threshold` mirrors the
+# values currently hard-coded in pose3d.py so the descriptor can
+# drive triangulation directly.
+#
+# Note the distinction between *colour* groups (anatomical limbs,
+# split L/R) and the face/hand confidence groups. Both live here;
+# code picks whichever it needs.
+groups:
+  face:
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    color: "#FF6B6B"
+    confidence_threshold: 0.5      # stricter: face is most hallucination-prone
+  hand:
+    indices: [17, 18, 19, 20, 21, 22]
+    color: "#F6A6FF"
+    confidence_threshold: 0.4
+  torso:
+    indices: [11, 12, 23, 24]
+    color: "#4ECDC4"
+    confidence_threshold: 0.3
+  left_arm:
+    indices: [11, 13, 15, 17, 19, 21]
+    color: "#45B7D1"
+    confidence_threshold: 0.3
+  right_arm:
+    indices: [12, 14, 16, 18, 20, 22]
+    color: "#34c0eb"
+    confidence_threshold: 0.3
+  left_leg:
+    indices: [23, 25, 27, 29, 31]
+    color: "#FFEAA7"
+    confidence_threshold: 0.3
+  right_leg:
+    indices: [24, 26, 28, 30, 32]
+    color: "#DDA15E"
+    confidence_threshold: 0.3
+
+# ── Connections (skeleton edges) ─────────────────────────────
+# Each edge names the group that determines its draw colour. This
+# replaces the _connection_color() heuristic in viewer.py.
+connections:
+  - {edge: [0, 1],   group: face}
+  - {edge: [1, 2],   group: face}
+  - {edge: [2, 3],   group: face}
+  - {edge: [3, 7],   group: face}
+  - {edge: [0, 4],   group: face}
+  - {edge: [4, 5],   group: face}
+  - {edge: [5, 6],   group: face}
+  - {edge: [6, 8],   group: face}
+  - {edge: [9, 10],  group: face}
+  - {edge: [11, 12], group: torso}
+  - {edge: [11, 23], group: torso}
+  - {edge: [12, 24], group: torso}
+  - {edge: [23, 24], group: torso}
+  - {edge: [11, 13], group: left_arm}
+  - {edge: [13, 15], group: left_arm}
+  - {edge: [15, 17], group: left_arm}
+  - {edge: [15, 19], group: left_arm}
+  - {edge: [15, 21], group: left_arm}
+  - {edge: [12, 14], group: right_arm}
+  - {edge: [14, 16], group: right_arm}
+  - {edge: [16, 18], group: right_arm}
+  - {edge: [16, 20], group: right_arm}
+  - {edge: [16, 22], group: right_arm}
+  - {edge: [23, 25], group: left_leg}
+  - {edge: [25, 27], group: left_leg}
+  - {edge: [27, 29], group: left_leg}
+  - {edge: [27, 31], group: left_leg}
+  - {edge: [24, 26], group: right_leg}
+  - {edge: [26, 28], group: right_leg}
+  - {edge: [28, 30], group: right_leg}
+  - {edge: [28, 32], group: right_leg}
+
+# ── Anatomy anchors ──────────────────────────────────────────
+# Semantic role -> landmark index. Decouples anatomical *roles* from
+# landmark *names*, so orientation/alignment code can ask for, e.g.,
+# the left hip without hard-coding index 23. A skeleton that lacks a
+# role simply omits it; consumers that need it should check and raise
+# a clear error. These power detect_person_orientation() and the
+# body-centre/up/forward logic in analysis.py.
+anatomy:
+  nose: 0
+  left_shoulder: 11
+  right_shoulder: 12
+  left_hip: 23
+  right_hip: 24
+  left_ankle: 27
+  right_ankle: 28
+
+# ── Bilateral symmetry ───────────────────────────────────────
+# Left/right index pairs (for mirroring/augmentation, lateralisation
+# analyses, and detecting L/R swaps under occlusion). `midline` lists
+# landmarks with no mirror partner.
+symmetry:
+  midline: [0]
+  pairs:
+    - [1, 4]
+    - [2, 5]
+    - [3, 6]
+    - [7, 8]
+    - [9, 10]
+    - [11, 12]
+    - [13, 14]
+    - [15, 16]
+    - [17, 18]
+    - [19, 20]
+    - [21, 22]
+    - [23, 24]
+    - [25, 26]
+    - [27, 28]
+    - [29, 30]
+    - [31, 32]
+
+# ── Virtual landmarks ────────────────────────────────────────
+# MediaPipe provides no body-centre points. These are computed on
+# demand from the listed source indices. Useful as a body origin
+# for proximity / orientation measures in interaction analyses.
+virtual_landmarks:
+  - {name: pelvis, source: [23, 24], method: midpoint}
+  - {name: neck,   source: [11, 12], method: midpoint}
+  - {name: head,   source: [7, 8],   method: midpoint}
+
+# ── Segments ─────────────────────────────────────────────────
+# Named bones whose 3D length should stay ~constant across frames.
+# A rigidity check on these is a cheap QC signal complementing the
+# reprojection-error filtering in pose3d.py.
+segments:
+  - {name: left_upperarm,  from: 11, to: 13}
+  - {name: left_forearm,   from: 13, to: 15}
+  - {name: right_upperarm, from: 12, to: 14}
+  - {name: right_forearm,  from: 14, to: 16}
+  - {name: left_thigh,     from: 23, to: 25}
+  - {name: left_shin,      from: 25, to: 27}
+  - {name: right_thigh,    from: 24, to: 26}
+  - {name: right_shin,     from: 26, to: 28}
+  - {name: shoulder_width, from: 11, to: 12}
+  - {name: hip_width,      from: 23, to: 24}

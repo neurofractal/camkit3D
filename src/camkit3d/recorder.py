@@ -22,13 +22,22 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # DataPixx trigger helpers (only used when use_datapixx=True)
 # ---------------------------------------------------------------------------
+_dpx_available = False
+try:
+    from pypixxlib import _libdpx as dp
+    _dpx_available = True
+except ImportError:
+    logger.info("pypixxlib not available — DataPixx triggers disabled")
+
+
 def _dpx_send_trigger(trig: int):
     """Send a trigger value via DataPixx digital outputs.
 
     Args:
         trig: Trigger number (0 = all off, 1/2/3/... = specific trigger line)
     """
-    from pypixxlib import _libdpx as dp
+    if not _dpx_available:
+        return
 
     if trig == 0:
         val = 0
@@ -42,7 +51,9 @@ def _dpx_send_trigger(trig: int):
 
 def _dpx_open():
     """Open DataPixx connection and ensure triggers start at 0."""
-    from pypixxlib import _libdpx as dp
+    if not _dpx_available:
+        logger.info("DataPixx not available — skipping open")
+        return
 
     dp.DPxOpen()
     if not dp.DPxIsReady():
@@ -54,7 +65,8 @@ def _dpx_open():
 
 def _dpx_close():
     """Ensure triggers are off and close DataPixx connection."""
-    from pypixxlib import _libdpx as dp
+    if not _dpx_available:
+        return
 
     _dpx_send_trigger(0)
     dp.DPxClose()
@@ -419,7 +431,7 @@ class MultiCamRecorder:
                  height: int = 720,
                  fps: int = 30,
                  base_output_dir: str = "./recordings",
-                 use_datapixx: bool = False,
+                 use_datapixx: bool = None,
                  trigger: int = 1):
         """
         Initialize MultiCamRecorder
@@ -431,24 +443,31 @@ class MultiCamRecorder:
             fps: Frames per second
             base_output_dir: Base directory for recordings
             use_datapixx: If True, send DataPixx digital triggers on
-                          recording start/stop (requires pypixxlib)
-            trigger: DataPixx trigger number (1, 2, 3, etc.) — only
-                     used when use_datapixx=True
+                          recording start/stop (requires pypixxlib).
+                          If None (default), auto-enables when trigger
+                          is passed and pypixxlib is available.
+            trigger: DataPixx trigger number (1, 2, 3, etc.)
         """
         self.camera_ids = camera_ids or [0]
         self.width = width
         self.height = height
         self.fps = fps
         self.base_output_dir = Path(base_output_dir)
-        self.use_datapixx = use_datapixx
         self.trigger = trigger
+        
+        # Auto-detect: if use_datapixx not explicitly set, enable when
+        # pypixxlib is available (user passing trigger= implies intent)
+        if use_datapixx is None:
+            self.use_datapixx = _dpx_available
+        else:
+            self.use_datapixx = use_datapixx
         
         self.cameras: Dict[int, CameraThread] = {}
         self.is_recording = False
         self.current_trial_name = None
         self.current_trial_dir = None
         
-        # Open DataPixx connection if requested
+        # Open DataPixx connection if enabled
         if self.use_datapixx:
             _dpx_open()
         
@@ -519,10 +538,11 @@ class MultiCamRecorder:
         
         if success_count > 0:
             self.is_recording = True
-            # Send DataPixx trigger ON if enabled
+            # Send DataPixx trigger pulse (0.1s) at recording start
             if self.use_datapixx:
-                logger.info(f"Sending DataPixx trigger {self.trigger} ON")
+                logger.info(f"Sending DataPixx trigger {self.trigger} pulse (start)")
                 _dpx_send_trigger(self.trigger)
+                threading.Timer(0.1, _dpx_send_trigger, args=(0,)).start()
             logger.info(f"Recording started on {success_count} cameras")
             return True
         else:
@@ -559,10 +579,11 @@ class MultiCamRecorder:
         
         self.is_recording = False
         
-        # Send DataPixx trigger OFF if enabled
+        # Send DataPixx trigger pulse (0.1s) at recording stop
         if self.use_datapixx:
-            logger.info("Sending DataPixx trigger OFF (0)")
-            _dpx_send_trigger(0)
+            logger.info(f"Sending DataPixx trigger {self.trigger} pulse (stop)")
+            _dpx_send_trigger(self.trigger)
+            threading.Timer(0.1, _dpx_send_trigger, args=(0,)).start()
         
         logger.info(f"Recording stopped: {self.current_trial_name}")
         

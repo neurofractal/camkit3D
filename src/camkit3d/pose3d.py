@@ -24,6 +24,15 @@ from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
 import logging
 
+from camkit3d import skeletons as _skeletons
+from camkit3d.skeletons import PoseDefinition
+
+
+def _body_indices(skel) -> list:
+    """Landmark indices that are neither in the 'face' nor 'hand' group."""
+    face_hand = set(skel.group_indices("face")) | set(skel.group_indices("hand"))
+    return [i for i in range(skel.num_landmarks) if i not in face_hand]
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -207,12 +216,19 @@ class Pose3DProjector:
         >>> print(metrics)
     """
     
-    # MediaPipe landmark groups — face landmarks are the ones that
-    # hallucinate most when the face is occluded or at frame edges.
-    FACE_LANDMARK_INDICES = list(range(0, 11))    # nose, eyes, ears, mouth
-    HAND_LANDMARK_INDICES = [17, 18, 19, 20, 21, 22]  # pinky, index, thumb
-    BODY_LANDMARK_INDICES = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
-    
+    # Landmark groups, derived from the default skeleton descriptor. These
+    # remain class attributes (used by nan_filter_by_reprojection_error's
+    # per-group breakdown) but are sourced from the skeleton rather than
+    # hard-coded. An instance built with a non-default skeleton overrides
+    # these on self (see __init__).
+    _DEFAULT_SKELETON = _skeletons.load()  # mediapipe_pose
+    FACE_LANDMARK_INDICES = list(_DEFAULT_SKELETON.group_indices("face"))
+    HAND_LANDMARK_INDICES = list(_DEFAULT_SKELETON.group_indices("hand"))
+    # Body = everything that is neither face nor hand. Computed via a module
+    # helper so the comprehension doesn't reference class-scope names (which
+    # comprehension scopes can't see).
+    BODY_LANDMARK_INDICES = _body_indices(_DEFAULT_SKELETON)
+
     def __init__(
         self,
         calibration_path: str,
@@ -223,6 +239,7 @@ class Pose3DProjector:
         hand_confidence_threshold: Optional[float] = None,
         reprojection_error_threshold: float = 15.0,
         use_iterative_rejection: bool = True,
+        skeleton=None,
     ):
         """
         Initialize the 3D projector.
@@ -244,6 +261,9 @@ class Pose3DProjector:
                 re-triangulate excluding any camera whose reprojection error
                 exceeds reprojection_error_threshold. This is the key fix for
                 bad face/hand points from a single camera blowing up the 3D result.
+            skeleton: str id or PoseDefinition for the pose topology. Defaults
+                to MediaPipe Pose. Determines the number of landmarks and which
+                indices count as face / hand / body for per-group thresholds.
         """
         self.calibration_path = Path(calibration_path)
         self.keypoints_dir = Path(keypoints_dir)
@@ -259,9 +279,25 @@ class Pose3DProjector:
         )
         self.reprojection_error_threshold = reprojection_error_threshold
         self.use_iterative_rejection = use_iterative_rejection
-        
-        # Build a per-keypoint confidence threshold array (33 landmarks)
-        self._per_kp_threshold = np.full(33, self.confidence_threshold)
+
+        # Resolve the skeleton and its landmark groups (per-instance, so a
+        # non-default skeleton shadows the class-level attributes above).
+        if skeleton is None:
+            self.skeleton = self._DEFAULT_SKELETON
+        elif isinstance(skeleton, PoseDefinition):
+            self.skeleton = skeleton
+        else:
+            self.skeleton = _skeletons.load(skeleton)
+        self.FACE_LANDMARK_INDICES = list(self.skeleton.group_indices("face"))
+        self.HAND_LANDMARK_INDICES = list(self.skeleton.group_indices("hand"))
+        self.BODY_LANDMARK_INDICES = _body_indices(self.skeleton)
+
+        # Build the per-keypoint confidence-threshold array. Start from the
+        # body default, then apply the (possibly user-overridden) face/hand
+        # thresholds. This preserves the original default semantics
+        # (confidence_threshold +0.2 / +0.1) while being skeleton-sized.
+        n_kp = self.skeleton.num_landmarks
+        self._per_kp_threshold = np.full(n_kp, self.confidence_threshold)
         for idx in self.FACE_LANDMARK_INDICES:
             self._per_kp_threshold[idx] = self.face_confidence_threshold
         for idx in self.HAND_LANDMARK_INDICES:
@@ -644,6 +680,7 @@ class Pose3DProjector:
         confidence_threshold: float = 0.0,
         per_keypoint: bool = True,
         verbose: bool = True,
+        skeleton=None,
     ) -> np.ndarray:
         """
         Post-processing: replace 3D points with NaN where quality is poor.
@@ -731,10 +768,22 @@ class Pose3DProjector:
             
             # Per-landmark-group breakdown
             if per_keypoint:
+                # Resolve groups from the given skeleton, else the class default.
+                if skeleton is None:
+                    face_idx = Pose3DProjector.FACE_LANDMARK_INDICES
+                    hand_idx = Pose3DProjector.HAND_LANDMARK_INDICES
+                    body_idx = Pose3DProjector.BODY_LANDMARK_INDICES
+                else:
+                    skel = (skeleton if isinstance(skeleton, PoseDefinition)
+                            else _skeletons.load(skeleton))
+                    face_idx = list(skel.group_indices("face"))
+                    hand_idx = list(skel.group_indices("hand"))
+                    body_idx = _body_indices(skel)
+
                 for group_name, indices in [
-                    ("face (0-10)", Pose3DProjector.FACE_LANDMARK_INDICES),
-                    ("hands (17-22)", Pose3DProjector.HAND_LANDMARK_INDICES),
-                    ("body", Pose3DProjector.BODY_LANDMARK_INDICES),
+                    ("face", face_idx),
+                    ("hands", hand_idx),
+                    ("body", body_idx),
                 ]:
                     idx = [i for i in indices if i < n_keypoints]
                     if not idx:
@@ -778,6 +827,7 @@ class Pose3DProjector:
             'n_keypoints': int(points_3d.shape[1]),
             'n_cameras_used': len(self.cameras),
             'camera_names': list(self.cameras.keys()),
+            'skeleton_id': self.skeleton.skeleton_id,
             'coordinate_system': '3D world coordinates (mm)',
             'data_format': 'n_frames x n_keypoints x 3 (x, y, z)'
         }
