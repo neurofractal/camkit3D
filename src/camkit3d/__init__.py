@@ -39,8 +39,6 @@ from camkit3d.analysis import (
     animate_3d_pose,
     animate_3d_pose_auto_orient,
     animate_3d_pose_multiangle,
-    SKELETON_CONNECTIONS,
-    BODY_PART_COLORS,
 )
 
 __all__ = [
@@ -72,6 +70,4 @@ __all__ = [
     "animate_3d_pose",
     "animate_3d_pose_auto_orient",
     "animate_3d_pose_multiangle",
-    "SKELETON_CONNECTIONS",
-    "BODY_PART_COLORS",
 ]
