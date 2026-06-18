@@ -55,7 +55,7 @@ detection rates, confidence stats, and any warnings.
 | `--workers` | `1` | Folders in parallel (cameras already parallelise within each) |
 
 !!! tip "Why batching is faster"
-    Both runners parallelise work — `run_sync_batch.py` across folders, 
+    Both scripts parallelise work — `run_sync_batch.py` across folders, 
     `run_pose_batch.py` across cameras within
     each folder — and suppress per-trial logging in favour of one live table, so
     you can launch a full session's recordings and leave them to run.
