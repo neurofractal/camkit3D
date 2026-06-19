@@ -42,7 +42,7 @@ remove_lower_body_directory(data_2d)
 clean_face_points_directory(data_2d, frame_width=1920, frame_height=1080)
 ```
 
-**Smoothing** filters only the x/y channels (confidence untouched); set `sampling_freq` to your true frame rate. **Lower-body removal** affects only hips/legs/feet. **Face cleaning** flags face landmarks that are occluded or near a frame border and, by default, reduces their confidence so weighted triangulation discounts them — see [Face Cleaning](clean_face_points.md) for the strategy options.
+**Smoothing** filters only the x/y channels (confidence untouched); set `sampling_freq` to your true frame rate. **Lower-body removal** affects only hips/legs/feet. **Face cleaning** flags face landmarks that are occluded or near a frame border and removes them or reduces their confidence.
 
 !!! tip "Smooth before you triangulate"
     See the [Smoothing Strategy](smoothing.md) page for why 2D smoothing
