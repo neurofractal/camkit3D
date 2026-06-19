@@ -1,0 +1,756 @@
+# ============================================================
+# CamKit3D skeleton descriptor — MediaPipe Holistic (543 kp)
+# ------------------------------------------------------------
+# Describes the combined 543-landmark skeleton produced by
+# MediaPipe Holistic: 33 body (pose) + 468 face mesh + 21 left
+# hand + 21 right hand, concatenated into one index space. The
+# 33 pose landmarks occupy indices 0-32, identical to the
+# mediapipe_pose skeleton, so anything written against pose
+# indices works on this skeleton too.
+#
+# See docs/skeletons.md for the schema reference.
+# ============================================================
+
+metadata:
+  skeleton_id: mediapipe_holistic
+  name: MediaPipe Holistic (Pose + Face + Hands)
+  description: >-
+    Combined 543-landmark topology from MediaPipe Holistic (legacy
+    mp.solutions.holistic): 33 pose + 468 face + 21 left-hand +
+    21 right-hand. Pose indices 0-32 match the mediapipe_pose skeleton.
+  num_landmarks: 543
+  model: mediapipe.solutions.holistic
+  source: https://github.com/google-ai-edge/mediapipe/blob/master/docs/solutions/holistic.md
+  coordinate_system: image pixels (x, y); z relative depth where available
+  units: px
+  schema_version: 1.0
+  # Index ranges [start, end] inclusive for each landmark block.
+  # Lets you slice out one body part, or drop the face mesh entirely.
+  blocks:
+    pose:  [0, 32]
+    face:  [33, 500]
+    left_hand:  [501, 521]
+    right_hand: [522, 542]
+
+# ── Landmarks ────────────────────────────────────────────────
+# All 543 keypoints, one per row, ordered pose -> face -> left
+# hand -> right hand. `index` is the position in the coordinate
+# array; `name` is prefixed by block (pose_, face_, lh_, rh_);
+# `group` ties it to a body part; `side` is left / right / center.
+# Most face-mesh points are named face_<n> by their mesh index;
+# a few salient ones carry readable names (e.g. face_nose_tip).
+landmarks:
+  - {index: 0, name: pose_nose, group: pose, side: center}
+  - {index: 1, name: pose_left_eye_inner, group: pose, side: left}
+  - {index: 2, name: pose_left_eye, group: pose, side: left}
+  - {index: 3, name: pose_left_eye_outer, group: pose, side: left}
+  - {index: 4, name: pose_right_eye_inner, group: pose, side: right}
+  - {index: 5, name: pose_right_eye, group: pose, side: right}
+  - {index: 6, name: pose_right_eye_outer, group: pose, side: right}
+  - {index: 7, name: pose_left_ear, group: pose, side: left}
+  - {index: 8, name: pose_right_ear, group: pose, side: right}
+  - {index: 9, name: pose_mouth_left, group: pose, side: center}
+  - {index: 10, name: pose_mouth_right, group: pose, side: center}
+  - {index: 11, name: pose_left_shoulder, group: pose, side: left}
+  - {index: 12, name: pose_right_shoulder, group: pose, side: right}
+  - {index: 13, name: pose_left_elbow, group: pose, side: left}
+  - {index: 14, name: pose_right_elbow, group: pose, side: right}
+  - {index: 15, name: pose_left_wrist, group: pose, side: left}
+  - {index: 16, name: pose_right_wrist, group: pose, side: right}
+  - {index: 17, name: pose_left_pinky, group: pose, side: left}
+  - {index: 18, name: pose_right_pinky, group: pose, side: right}
+  - {index: 19, name: pose_left_index, group: pose, side: left}
+  - {index: 20, name: pose_right_index, group: pose, side: right}
+  - {index: 21, name: pose_left_thumb, group: pose, side: left}
+  - {index: 22, name: pose_right_thumb, group: pose, side: right}
+  - {index: 23, name: pose_left_hip, group: pose, side: left}
+  - {index: 24, name: pose_right_hip, group: pose, side: right}
+  - {index: 25, name: pose_left_knee, group: pose, side: left}
+  - {index: 26, name: pose_right_knee, group: pose, side: right}
+  - {index: 27, name: pose_left_ankle, group: pose, side: left}
+  - {index: 28, name: pose_right_ankle, group: pose, side: right}
+  - {index: 29, name: pose_left_heel, group: pose, side: left}
+  - {index: 30, name: pose_right_heel, group: pose, side: right}
+  - {index: 31, name: pose_left_foot_index, group: pose, side: left}
+  - {index: 32, name: pose_right_foot_index, group: pose, side: right}
+  - {index: 33, name: face_0, group: face, side: center}
+  - {index: 34, name: face_nose_tip, group: face, side: center}
+  - {index: 35, name: face_2, group: face, side: center}
+  - {index: 36, name: face_3, group: face, side: center}
+  - {index: 37, name: face_4, group: face, side: center}
+  - {index: 38, name: face_5, group: face, side: center}
+  - {index: 39, name: face_6, group: face, side: center}
+  - {index: 40, name: face_7, group: face, side: center}
+  - {index: 41, name: face_8, group: face, side: center}
+  - {index: 42, name: face_9, group: face, side: center}
+  - {index: 43, name: face_forehead, group: face, side: center}
+  - {index: 44, name: face_11, group: face, side: center}
+  - {index: 45, name: face_12, group: face, side: center}
+  - {index: 46, name: face_13, group: face, side: center}
+  - {index: 47, name: face_14, group: face, side: center}
+  - {index: 48, name: face_15, group: face, side: center}
+  - {index: 49, name: face_16, group: face, side: center}
+  - {index: 50, name: face_17, group: face, side: center}
+  - {index: 51, name: face_18, group: face, side: center}
+  - {index: 52, name: face_19, group: face, side: center}
+  - {index: 53, name: face_20, group: face, side: center}
+  - {index: 54, name: face_21, group: face, side: center}
+  - {index: 55, name: face_22, group: face, side: center}
+  - {index: 56, name: face_23, group: face, side: center}
+  - {index: 57, name: face_24, group: face, side: center}
+  - {index: 58, name: face_25, group: face, side: center}
+  - {index: 59, name: face_26, group: face, side: center}
+  - {index: 60, name: face_27, group: face, side: center}
+  - {index: 61, name: face_28, group: face, side: center}
+  - {index: 62, name: face_29, group: face, side: center}
+  - {index: 63, name: face_30, group: face, side: center}
+  - {index: 64, name: face_31, group: face, side: center}
+  - {index: 65, name: face_32, group: face, side: center}
+  - {index: 66, name: face_right_eye_outer, group: face, side: center}
+  - {index: 67, name: face_34, group: face, side: center}
+  - {index: 68, name: face_35, group: face, side: center}
+  - {index: 69, name: face_36, group: face, side: center}
+  - {index: 70, name: face_37, group: face, side: center}
+  - {index: 71, name: face_38, group: face, side: center}
+  - {index: 72, name: face_39, group: face, side: center}
+  - {index: 73, name: face_40, group: face, side: center}
+  - {index: 74, name: face_41, group: face, side: center}
+  - {index: 75, name: face_42, group: face, side: center}
+  - {index: 76, name: face_43, group: face, side: center}
+  - {index: 77, name: face_44, group: face, side: center}
+  - {index: 78, name: face_45, group: face, side: center}
+  - {index: 79, name: face_46, group: face, side: center}
+  - {index: 80, name: face_47, group: face, side: center}
+  - {index: 81, name: face_48, group: face, side: center}
+  - {index: 82, name: face_49, group: face, side: center}
+  - {index: 83, name: face_50, group: face, side: center}
+  - {index: 84, name: face_51, group: face, side: center}
+  - {index: 85, name: face_52, group: face, side: center}
+  - {index: 86, name: face_53, group: face, side: center}
+  - {index: 87, name: face_54, group: face, side: center}
+  - {index: 88, name: face_55, group: face, side: center}
+  - {index: 89, name: face_56, group: face, side: center}
+  - {index: 90, name: face_57, group: face, side: center}
+  - {index: 91, name: face_58, group: face, side: center}
+  - {index: 92, name: face_59, group: face, side: center}
+  - {index: 93, name: face_60, group: face, side: center}
+  - {index: 94, name: face_mouth_right, group: face, side: center}
+  - {index: 95, name: face_62, group: face, side: center}
+  - {index: 96, name: face_63, group: face, side: center}
+  - {index: 97, name: face_64, group: face, side: center}
+  - {index: 98, name: face_65, group: face, side: center}
+  - {index: 99, name: face_66, group: face, side: center}
+  - {index: 100, name: face_67, group: face, side: center}
+  - {index: 101, name: face_68, group: face, side: center}
+  - {index: 102, name: face_69, group: face, side: center}
+  - {index: 103, name: face_70, group: face, side: center}
+  - {index: 104, name: face_71, group: face, side: center}
+  - {index: 105, name: face_72, group: face, side: center}
+  - {index: 106, name: face_73, group: face, side: center}
+  - {index: 107, name: face_74, group: face, side: center}
+  - {index: 108, name: face_75, group: face, side: center}
+  - {index: 109, name: face_76, group: face, side: center}
+  - {index: 110, name: face_77, group: face, side: center}
+  - {index: 111, name: face_78, group: face, side: center}
+  - {index: 112, name: face_79, group: face, side: center}
+  - {index: 113, name: face_80, group: face, side: center}
+  - {index: 114, name: face_81, group: face, side: center}
+  - {index: 115, name: face_82, group: face, side: center}
+  - {index: 116, name: face_83, group: face, side: center}
+  - {index: 117, name: face_84, group: face, side: center}
+  - {index: 118, name: face_85, group: face, side: center}
+  - {index: 119, name: face_86, group: face, side: center}
+  - {index: 120, name: face_87, group: face, side: center}
+  - {index: 121, name: face_88, group: face, side: center}
+  - {index: 122, name: face_89, group: face, side: center}
+  - {index: 123, name: face_90, group: face, side: center}
+  - {index: 124, name: face_91, group: face, side: center}
+  - {index: 125, name: face_92, group: face, side: center}
+  - {index: 126, name: face_93, group: face, side: center}
+  - {index: 127, name: face_94, group: face, side: center}
+  - {index: 128, name: face_95, group: face, side: center}
+  - {index: 129, name: face_96, group: face, side: center}
+  - {index: 130, name: face_97, group: face, side: center}
+  - {index: 131, name: face_98, group: face, side: center}
+  - {index: 132, name: face_99, group: face, side: center}
+  - {index: 133, name: face_100, group: face, side: center}
+  - {index: 134, name: face_101, group: face, side: center}
+  - {index: 135, name: face_102, group: face, side: center}
+  - {index: 136, name: face_103, group: face, side: center}
+  - {index: 137, name: face_104, group: face, side: center}
+  - {index: 138, name: face_105, group: face, side: center}
+  - {index: 139, name: face_106, group: face, side: center}
+  - {index: 140, name: face_107, group: face, side: center}
+  - {index: 141, name: face_108, group: face, side: center}
+  - {index: 142, name: face_109, group: face, side: center}
+  - {index: 143, name: face_110, group: face, side: center}
+  - {index: 144, name: face_111, group: face, side: center}
+  - {index: 145, name: face_112, group: face, side: center}
+  - {index: 146, name: face_113, group: face, side: center}
+  - {index: 147, name: face_114, group: face, side: center}
+  - {index: 148, name: face_115, group: face, side: center}
+  - {index: 149, name: face_116, group: face, side: center}
+  - {index: 150, name: face_117, group: face, side: center}
+  - {index: 151, name: face_118, group: face, side: center}
+  - {index: 152, name: face_119, group: face, side: center}
+  - {index: 153, name: face_120, group: face, side: center}
+  - {index: 154, name: face_121, group: face, side: center}
+  - {index: 155, name: face_122, group: face, side: center}
+  - {index: 156, name: face_123, group: face, side: center}
+  - {index: 157, name: face_124, group: face, side: center}
+  - {index: 158, name: face_125, group: face, side: center}
+  - {index: 159, name: face_126, group: face, side: center}
+  - {index: 160, name: face_127, group: face, side: center}
+  - {index: 161, name: face_128, group: face, side: center}
+  - {index: 162, name: face_129, group: face, side: center}
+  - {index: 163, name: face_130, group: face, side: center}
+  - {index: 164, name: face_131, group: face, side: center}
+  - {index: 165, name: face_132, group: face, side: center}
+  - {index: 166, name: face_right_eye_inner, group: face, side: center}
+  - {index: 167, name: face_134, group: face, side: center}
+  - {index: 168, name: face_135, group: face, side: center}
+  - {index: 169, name: face_136, group: face, side: center}
+  - {index: 170, name: face_137, group: face, side: center}
+  - {index: 171, name: face_138, group: face, side: center}
+  - {index: 172, name: face_139, group: face, side: center}
+  - {index: 173, name: face_140, group: face, side: center}
+  - {index: 174, name: face_141, group: face, side: center}
+  - {index: 175, name: face_142, group: face, side: center}
+  - {index: 176, name: face_143, group: face, side: center}
+  - {index: 177, name: face_144, group: face, side: center}
+  - {index: 178, name: face_145, group: face, side: center}
+  - {index: 179, name: face_146, group: face, side: center}
+  - {index: 180, name: face_147, group: face, side: center}
+  - {index: 181, name: face_148, group: face, side: center}
+  - {index: 182, name: face_149, group: face, side: center}
+  - {index: 183, name: face_150, group: face, side: center}
+  - {index: 184, name: face_151, group: face, side: center}
+  - {index: 185, name: face_152, group: face, side: center}
+  - {index: 186, name: face_153, group: face, side: center}
+  - {index: 187, name: face_154, group: face, side: center}
+  - {index: 188, name: face_155, group: face, side: center}
+  - {index: 189, name: face_156, group: face, side: center}
+  - {index: 190, name: face_157, group: face, side: center}
+  - {index: 191, name: face_158, group: face, side: center}
+  - {index: 192, name: face_159, group: face, side: center}
+  - {index: 193, name: face_160, group: face, side: center}
+  - {index: 194, name: face_161, group: face, side: center}
+  - {index: 195, name: face_162, group: face, side: center}
+  - {index: 196, name: face_163, group: face, side: center}
+  - {index: 197, name: face_164, group: face, side: center}
+  - {index: 198, name: face_165, group: face, side: center}
+  - {index: 199, name: face_166, group: face, side: center}
+  - {index: 200, name: face_167, group: face, side: center}
+  - {index: 201, name: face_168, group: face, side: center}
+  - {index: 202, name: face_169, group: face, side: center}
+  - {index: 203, name: face_170, group: face, side: center}
+  - {index: 204, name: face_171, group: face, side: center}
+  - {index: 205, name: face_172, group: face, side: center}
+  - {index: 206, name: face_173, group: face, side: center}
+  - {index: 207, name: face_174, group: face, side: center}
+  - {index: 208, name: face_175, group: face, side: center}
+  - {index: 209, name: face_176, group: face, side: center}
+  - {index: 210, name: face_177, group: face, side: center}
+  - {index: 211, name: face_178, group: face, side: center}
+  - {index: 212, name: face_179, group: face, side: center}
+  - {index: 213, name: face_180, group: face, side: center}
+  - {index: 214, name: face_181, group: face, side: center}
+  - {index: 215, name: face_182, group: face, side: center}
+  - {index: 216, name: face_183, group: face, side: center}
+  - {index: 217, name: face_184, group: face, side: center}
+  - {index: 218, name: face_185, group: face, side: center}
+  - {index: 219, name: face_186, group: face, side: center}
+  - {index: 220, name: face_187, group: face, side: center}
+  - {index: 221, name: face_188, group: face, side: center}
+  - {index: 222, name: face_189, group: face, side: center}
+  - {index: 223, name: face_190, group: face, side: center}
+  - {index: 224, name: face_191, group: face, side: center}
+  - {index: 225, name: face_192, group: face, side: center}
+  - {index: 226, name: face_193, group: face, side: center}
+  - {index: 227, name: face_194, group: face, side: center}
+  - {index: 228, name: face_195, group: face, side: center}
+  - {index: 229, name: face_196, group: face, side: center}
+  - {index: 230, name: face_197, group: face, side: center}
+  - {index: 231, name: face_198, group: face, side: center}
+  - {index: 232, name: face_chin, group: face, side: center}
+  - {index: 233, name: face_200, group: face, side: center}
+  - {index: 234, name: face_201, group: face, side: center}
+  - {index: 235, name: face_202, group: face, side: center}
+  - {index: 236, name: face_203, group: face, side: center}
+  - {index: 237, name: face_204, group: face, side: center}
+  - {index: 238, name: face_205, group: face, side: center}
+  - {index: 239, name: face_206, group: face, side: center}
+  - {index: 240, name: face_207, group: face, side: center}
+  - {index: 241, name: face_208, group: face, side: center}
+  - {index: 242, name: face_209, group: face, side: center}
+  - {index: 243, name: face_210, group: face, side: center}
+  - {index: 244, name: face_211, group: face, side: center}
+  - {index: 245, name: face_212, group: face, side: center}
+  - {index: 246, name: face_213, group: face, side: center}
+  - {index: 247, name: face_214, group: face, side: center}
+  - {index: 248, name: face_215, group: face, side: center}
+  - {index: 249, name: face_216, group: face, side: center}
+  - {index: 250, name: face_217, group: face, side: center}
+  - {index: 251, name: face_218, group: face, side: center}
+  - {index: 252, name: face_219, group: face, side: center}
+  - {index: 253, name: face_220, group: face, side: center}
+  - {index: 254, name: face_221, group: face, side: center}
+  - {index: 255, name: face_222, group: face, side: center}
+  - {index: 256, name: face_223, group: face, side: center}
+  - {index: 257, name: face_224, group: face, side: center}
+  - {index: 258, name: face_225, group: face, side: center}
+  - {index: 259, name: face_226, group: face, side: center}
+  - {index: 260, name: face_227, group: face, side: center}
+  - {index: 261, name: face_228, group: face, side: center}
+  - {index: 262, name: face_229, group: face, side: center}
+  - {index: 263, name: face_230, group: face, side: center}
+  - {index: 264, name: face_231, group: face, side: center}
+  - {index: 265, name: face_232, group: face, side: center}
+  - {index: 266, name: face_233, group: face, side: center}
+  - {index: 267, name: face_234, group: face, side: center}
+  - {index: 268, name: face_235, group: face, side: center}
+  - {index: 269, name: face_236, group: face, side: center}
+  - {index: 270, name: face_237, group: face, side: center}
+  - {index: 271, name: face_238, group: face, side: center}
+  - {index: 272, name: face_239, group: face, side: center}
+  - {index: 273, name: face_240, group: face, side: center}
+  - {index: 274, name: face_241, group: face, side: center}
+  - {index: 275, name: face_242, group: face, side: center}
+  - {index: 276, name: face_243, group: face, side: center}
+  - {index: 277, name: face_244, group: face, side: center}
+  - {index: 278, name: face_245, group: face, side: center}
+  - {index: 279, name: face_246, group: face, side: center}
+  - {index: 280, name: face_247, group: face, side: center}
+  - {index: 281, name: face_248, group: face, side: center}
+  - {index: 282, name: face_249, group: face, side: center}
+  - {index: 283, name: face_250, group: face, side: center}
+  - {index: 284, name: face_251, group: face, side: center}
+  - {index: 285, name: face_252, group: face, side: center}
+  - {index: 286, name: face_253, group: face, side: center}
+  - {index: 287, name: face_254, group: face, side: center}
+  - {index: 288, name: face_255, group: face, side: center}
+  - {index: 289, name: face_256, group: face, side: center}
+  - {index: 290, name: face_257, group: face, side: center}
+  - {index: 291, name: face_258, group: face, side: center}
+  - {index: 292, name: face_259, group: face, side: center}
+  - {index: 293, name: face_260, group: face, side: center}
+  - {index: 294, name: face_261, group: face, side: center}
+  - {index: 295, name: face_262, group: face, side: center}
+  - {index: 296, name: face_left_eye_outer, group: face, side: center}
+  - {index: 297, name: face_264, group: face, side: center}
+  - {index: 298, name: face_265, group: face, side: center}
+  - {index: 299, name: face_266, group: face, side: center}
+  - {index: 300, name: face_267, group: face, side: center}
+  - {index: 301, name: face_268, group: face, side: center}
+  - {index: 302, name: face_269, group: face, side: center}
+  - {index: 303, name: face_270, group: face, side: center}
+  - {index: 304, name: face_271, group: face, side: center}
+  - {index: 305, name: face_272, group: face, side: center}
+  - {index: 306, name: face_273, group: face, side: center}
+  - {index: 307, name: face_274, group: face, side: center}
+  - {index: 308, name: face_275, group: face, side: center}
+  - {index: 309, name: face_276, group: face, side: center}
+  - {index: 310, name: face_277, group: face, side: center}
+  - {index: 311, name: face_278, group: face, side: center}
+  - {index: 312, name: face_279, group: face, side: center}
+  - {index: 313, name: face_280, group: face, side: center}
+  - {index: 314, name: face_281, group: face, side: center}
+  - {index: 315, name: face_282, group: face, side: center}
+  - {index: 316, name: face_283, group: face, side: center}
+  - {index: 317, name: face_284, group: face, side: center}
+  - {index: 318, name: face_285, group: face, side: center}
+  - {index: 319, name: face_286, group: face, side: center}
+  - {index: 320, name: face_287, group: face, side: center}
+  - {index: 321, name: face_288, group: face, side: center}
+  - {index: 322, name: face_289, group: face, side: center}
+  - {index: 323, name: face_290, group: face, side: center}
+  - {index: 324, name: face_mouth_left, group: face, side: center}
+  - {index: 325, name: face_292, group: face, side: center}
+  - {index: 326, name: face_293, group: face, side: center}
+  - {index: 327, name: face_294, group: face, side: center}
+  - {index: 328, name: face_295, group: face, side: center}
+  - {index: 329, name: face_296, group: face, side: center}
+  - {index: 330, name: face_297, group: face, side: center}
+  - {index: 331, name: face_298, group: face, side: center}
+  - {index: 332, name: face_299, group: face, side: center}
+  - {index: 333, name: face_300, group: face, side: center}
+  - {index: 334, name: face_301, group: face, side: center}
+  - {index: 335, name: face_302, group: face, side: center}
+  - {index: 336, name: face_303, group: face, side: center}
+  - {index: 337, name: face_304, group: face, side: center}
+  - {index: 338, name: face_305, group: face, side: center}
+  - {index: 339, name: face_306, group: face, side: center}
+  - {index: 340, name: face_307, group: face, side: center}
+  - {index: 341, name: face_308, group: face, side: center}
+  - {index: 342, name: face_309, group: face, side: center}
+  - {index: 343, name: face_310, group: face, side: center}
+  - {index: 344, name: face_311, group: face, side: center}
+  - {index: 345, name: face_312, group: face, side: center}
+  - {index: 346, name: face_313, group: face, side: center}
+  - {index: 347, name: face_314, group: face, side: center}
+  - {index: 348, name: face_315, group: face, side: center}
+  - {index: 349, name: face_316, group: face, side: center}
+  - {index: 350, name: face_317, group: face, side: center}
+  - {index: 351, name: face_318, group: face, side: center}
+  - {index: 352, name: face_319, group: face, side: center}
+  - {index: 353, name: face_320, group: face, side: center}
+  - {index: 354, name: face_321, group: face, side: center}
+  - {index: 355, name: face_322, group: face, side: center}
+  - {index: 356, name: face_323, group: face, side: center}
+  - {index: 357, name: face_324, group: face, side: center}
+  - {index: 358, name: face_325, group: face, side: center}
+  - {index: 359, name: face_326, group: face, side: center}
+  - {index: 360, name: face_327, group: face, side: center}
+  - {index: 361, name: face_328, group: face, side: center}
+  - {index: 362, name: face_329, group: face, side: center}
+  - {index: 363, name: face_330, group: face, side: center}
+  - {index: 364, name: face_331, group: face, side: center}
+  - {index: 365, name: face_332, group: face, side: center}
+  - {index: 366, name: face_333, group: face, side: center}
+  - {index: 367, name: face_334, group: face, side: center}
+  - {index: 368, name: face_335, group: face, side: center}
+  - {index: 369, name: face_336, group: face, side: center}
+  - {index: 370, name: face_337, group: face, side: center}
+  - {index: 371, name: face_338, group: face, side: center}
+  - {index: 372, name: face_339, group: face, side: center}
+  - {index: 373, name: face_340, group: face, side: center}
+  - {index: 374, name: face_341, group: face, side: center}
+  - {index: 375, name: face_342, group: face, side: center}
+  - {index: 376, name: face_343, group: face, side: center}
+  - {index: 377, name: face_344, group: face, side: center}
+  - {index: 378, name: face_345, group: face, side: center}
+  - {index: 379, name: face_346, group: face, side: center}
+  - {index: 380, name: face_347, group: face, side: center}
+  - {index: 381, name: face_348, group: face, side: center}
+  - {index: 382, name: face_349, group: face, side: center}
+  - {index: 383, name: face_350, group: face, side: center}
+  - {index: 384, name: face_351, group: face, side: center}
+  - {index: 385, name: face_352, group: face, side: center}
+  - {index: 386, name: face_353, group: face, side: center}
+  - {index: 387, name: face_354, group: face, side: center}
+  - {index: 388, name: face_355, group: face, side: center}
+  - {index: 389, name: face_356, group: face, side: center}
+  - {index: 390, name: face_357, group: face, side: center}
+  - {index: 391, name: face_358, group: face, side: center}
+  - {index: 392, name: face_359, group: face, side: center}
+  - {index: 393, name: face_360, group: face, side: center}
+  - {index: 394, name: face_361, group: face, side: center}
+  - {index: 395, name: face_left_eye_inner, group: face, side: center}
+  - {index: 396, name: face_363, group: face, side: center}
+  - {index: 397, name: face_364, group: face, side: center}
+  - {index: 398, name: face_365, group: face, side: center}
+  - {index: 399, name: face_366, group: face, side: center}
+  - {index: 400, name: face_367, group: face, side: center}
+  - {index: 401, name: face_368, group: face, side: center}
+  - {index: 402, name: face_369, group: face, side: center}
+  - {index: 403, name: face_370, group: face, side: center}
+  - {index: 404, name: face_371, group: face, side: center}
+  - {index: 405, name: face_372, group: face, side: center}
+  - {index: 406, name: face_373, group: face, side: center}
+  - {index: 407, name: face_374, group: face, side: center}
+  - {index: 408, name: face_375, group: face, side: center}
+  - {index: 409, name: face_376, group: face, side: center}
+  - {index: 410, name: face_377, group: face, side: center}
+  - {index: 411, name: face_378, group: face, side: center}
+  - {index: 412, name: face_379, group: face, side: center}
+  - {index: 413, name: face_380, group: face, side: center}
+  - {index: 414, name: face_381, group: face, side: center}
+  - {index: 415, name: face_382, group: face, side: center}
+  - {index: 416, name: face_383, group: face, side: center}
+  - {index: 417, name: face_384, group: face, side: center}
+  - {index: 418, name: face_385, group: face, side: center}
+  - {index: 419, name: face_386, group: face, side: center}
+  - {index: 420, name: face_387, group: face, side: center}
+  - {index: 421, name: face_388, group: face, side: center}
+  - {index: 422, name: face_389, group: face, side: center}
+  - {index: 423, name: face_390, group: face, side: center}
+  - {index: 424, name: face_391, group: face, side: center}
+  - {index: 425, name: face_392, group: face, side: center}
+  - {index: 426, name: face_393, group: face, side: center}
+  - {index: 427, name: face_394, group: face, side: center}
+  - {index: 428, name: face_395, group: face, side: center}
+  - {index: 429, name: face_396, group: face, side: center}
+  - {index: 430, name: face_397, group: face, side: center}
+  - {index: 431, name: face_398, group: face, side: center}
+  - {index: 432, name: face_399, group: face, side: center}
+  - {index: 433, name: face_400, group: face, side: center}
+  - {index: 434, name: face_401, group: face, side: center}
+  - {index: 435, name: face_402, group: face, side: center}
+  - {index: 436, name: face_403, group: face, side: center}
+  - {index: 437, name: face_404, group: face, side: center}
+  - {index: 438, name: face_405, group: face, side: center}
+  - {index: 439, name: face_406, group: face, side: center}
+  - {index: 440, name: face_407, group: face, side: center}
+  - {index: 441, name: face_408, group: face, side: center}
+  - {index: 442, name: face_409, group: face, side: center}
+  - {index: 443, name: face_410, group: face, side: center}
+  - {index: 444, name: face_411, group: face, side: center}
+  - {index: 445, name: face_412, group: face, side: center}
+  - {index: 446, name: face_413, group: face, side: center}
+  - {index: 447, name: face_414, group: face, side: center}
+  - {index: 448, name: face_415, group: face, side: center}
+  - {index: 449, name: face_416, group: face, side: center}
+  - {index: 450, name: face_417, group: face, side: center}
+  - {index: 451, name: face_418, group: face, side: center}
+  - {index: 452, name: face_419, group: face, side: center}
+  - {index: 453, name: face_420, group: face, side: center}
+  - {index: 454, name: face_421, group: face, side: center}
+  - {index: 455, name: face_422, group: face, side: center}
+  - {index: 456, name: face_423, group: face, side: center}
+  - {index: 457, name: face_424, group: face, side: center}
+  - {index: 458, name: face_425, group: face, side: center}
+  - {index: 459, name: face_426, group: face, side: center}
+  - {index: 460, name: face_427, group: face, side: center}
+  - {index: 461, name: face_428, group: face, side: center}
+  - {index: 462, name: face_429, group: face, side: center}
+  - {index: 463, name: face_430, group: face, side: center}
+  - {index: 464, name: face_431, group: face, side: center}
+  - {index: 465, name: face_432, group: face, side: center}
+  - {index: 466, name: face_433, group: face, side: center}
+  - {index: 467, name: face_434, group: face, side: center}
+  - {index: 468, name: face_435, group: face, side: center}
+  - {index: 469, name: face_436, group: face, side: center}
+  - {index: 470, name: face_437, group: face, side: center}
+  - {index: 471, name: face_438, group: face, side: center}
+  - {index: 472, name: face_439, group: face, side: center}
+  - {index: 473, name: face_440, group: face, side: center}
+  - {index: 474, name: face_441, group: face, side: center}
+  - {index: 475, name: face_442, group: face, side: center}
+  - {index: 476, name: face_443, group: face, side: center}
+  - {index: 477, name: face_444, group: face, side: center}
+  - {index: 478, name: face_445, group: face, side: center}
+  - {index: 479, name: face_446, group: face, side: center}
+  - {index: 480, name: face_447, group: face, side: center}
+  - {index: 481, name: face_448, group: face, side: center}
+  - {index: 482, name: face_449, group: face, side: center}
+  - {index: 483, name: face_450, group: face, side: center}
+  - {index: 484, name: face_451, group: face, side: center}
+  - {index: 485, name: face_452, group: face, side: center}
+  - {index: 486, name: face_453, group: face, side: center}
+  - {index: 487, name: face_454, group: face, side: center}
+  - {index: 488, name: face_455, group: face, side: center}
+  - {index: 489, name: face_456, group: face, side: center}
+  - {index: 490, name: face_457, group: face, side: center}
+  - {index: 491, name: face_458, group: face, side: center}
+  - {index: 492, name: face_459, group: face, side: center}
+  - {index: 493, name: face_460, group: face, side: center}
+  - {index: 494, name: face_461, group: face, side: center}
+  - {index: 495, name: face_462, group: face, side: center}
+  - {index: 496, name: face_463, group: face, side: center}
+  - {index: 497, name: face_464, group: face, side: center}
+  - {index: 498, name: face_465, group: face, side: center}
+  - {index: 499, name: face_466, group: face, side: center}
+  - {index: 500, name: face_467, group: face, side: center}
+  - {index: 501, name: lh_wrist, group: left_hand, side: left}
+  - {index: 502, name: lh_thumb_cmc, group: left_hand, side: left}
+  - {index: 503, name: lh_thumb_mcp, group: left_hand, side: left}
+  - {index: 504, name: lh_thumb_ip, group: left_hand, side: left}
+  - {index: 505, name: lh_thumb_tip, group: left_hand, side: left}
+  - {index: 506, name: lh_index_mcp, group: left_hand, side: left}
+  - {index: 507, name: lh_index_pip, group: left_hand, side: left}
+  - {index: 508, name: lh_index_dip, group: left_hand, side: left}
+  - {index: 509, name: lh_index_tip, group: left_hand, side: left}
+  - {index: 510, name: lh_middle_mcp, group: left_hand, side: left}
+  - {index: 511, name: lh_middle_pip, group: left_hand, side: left}
+  - {index: 512, name: lh_middle_dip, group: left_hand, side: left}
+  - {index: 513, name: lh_middle_tip, group: left_hand, side: left}
+  - {index: 514, name: lh_ring_mcp, group: left_hand, side: left}
+  - {index: 515, name: lh_ring_pip, group: left_hand, side: left}
+  - {index: 516, name: lh_ring_dip, group: left_hand, side: left}
+  - {index: 517, name: lh_ring_tip, group: left_hand, side: left}
+  - {index: 518, name: lh_pinky_mcp, group: left_hand, side: left}
+  - {index: 519, name: lh_pinky_pip, group: left_hand, side: left}
+  - {index: 520, name: lh_pinky_dip, group: left_hand, side: left}
+  - {index: 521, name: lh_pinky_tip, group: left_hand, side: left}
+  - {index: 522, name: rh_wrist, group: right_hand, side: right}
+  - {index: 523, name: rh_thumb_cmc, group: right_hand, side: right}
+  - {index: 524, name: rh_thumb_mcp, group: right_hand, side: right}
+  - {index: 525, name: rh_thumb_ip, group: right_hand, side: right}
+  - {index: 526, name: rh_thumb_tip, group: right_hand, side: right}
+  - {index: 527, name: rh_index_mcp, group: right_hand, side: right}
+  - {index: 528, name: rh_index_pip, group: right_hand, side: right}
+  - {index: 529, name: rh_index_dip, group: right_hand, side: right}
+  - {index: 530, name: rh_index_tip, group: right_hand, side: right}
+  - {index: 531, name: rh_middle_mcp, group: right_hand, side: right}
+  - {index: 532, name: rh_middle_pip, group: right_hand, side: right}
+  - {index: 533, name: rh_middle_dip, group: right_hand, side: right}
+  - {index: 534, name: rh_middle_tip, group: right_hand, side: right}
+  - {index: 535, name: rh_ring_mcp, group: right_hand, side: right}
+  - {index: 536, name: rh_ring_pip, group: right_hand, side: right}
+  - {index: 537, name: rh_ring_dip, group: right_hand, side: right}
+  - {index: 538, name: rh_ring_tip, group: right_hand, side: right}
+  - {index: 539, name: rh_pinky_mcp, group: right_hand, side: right}
+  - {index: 540, name: rh_pinky_pip, group: right_hand, side: right}
+  - {index: 541, name: rh_pinky_dip, group: right_hand, side: right}
+  - {index: 542, name: rh_pinky_tip, group: right_hand, side: right}
+
+# ── Groups ───────────────────────────────────────────────────
+# Named sets of landmarks. `pose`, `face`, `left_hand`, `right_hand`
+# are the four capture blocks; the rest (torso, arms, legs,
+# pose_face) are body-part subsets of the pose block, used for
+# colouring. `color` is the draw colour; `confidence_threshold` is
+# the minimum trusted detection confidence. Note: only pose
+# landmarks carry a real confidence score — face and hand points
+# are reported as present (1.0) or absent (0.0), so their threshold
+# acts as a presence test, not a graded cutoff.
+groups:
+  pose:
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+    color: "#4ECDC4"
+    confidence_threshold: 0.3
+  pose_face:
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    color: "#FF6B6B"
+    confidence_threshold: 0.5
+  torso:
+    indices: [11, 12, 23, 24]
+    color: "#4ECDC4"
+    confidence_threshold: 0.3
+  left_arm:
+    indices: [11, 13, 15, 17, 19, 21]
+    color: "#45B7D1"
+    confidence_threshold: 0.3
+  right_arm:
+    indices: [12, 14, 16, 18, 20, 22]
+    color: "#96CEB4"
+    confidence_threshold: 0.3
+  left_leg:
+    indices: [23, 25, 27, 29, 31]
+    color: "#FFEAA7"
+    confidence_threshold: 0.3
+  right_leg:
+    indices: [24, 26, 28, 30, 32]
+    color: "#DDA15E"
+    confidence_threshold: 0.3
+  face:
+    indices: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500]
+    color: "#FF9FF3"
+    confidence_threshold: 0.3
+  left_hand:
+    indices: [501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521]
+    color: "#F6A6FF"
+    confidence_threshold: 0.3
+  right_hand:
+    indices: [522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542]
+    color: "#A6C8FF"
+    confidence_threshold: 0.3
+
+# ── Anatomy anchors ──────────────────────────────────────────
+# Fixed anatomical role -> landmark index. Identical to the
+# mediapipe_pose anchors because the pose block shares its indices,
+# so orientation/alignment behaves the same on both skeletons.
+anatomy:
+  nose: 0
+  left_shoulder: 11
+  right_shoulder: 12
+  left_hip: 23
+  right_hip: 24
+  left_ankle: 27
+  right_ankle: 28
+  left_wrist: 15
+  right_wrist: 16
+
+# ── Semantic roles ───────────────────────────────────────────
+# Maps a coarse role to the group(s) that make it up, so code can
+# ask for "the hands" without knowing this skeleton splits them
+# into left_hand and right_hand. `body` is everything not face/hand.
+roles:
+  face: [face]
+  hand: [left_hand, right_hand]
+
+# ── Connections (skeleton edges) ─────────────────────────────
+# Pairs of landmark indices joined by a bone when drawn, each
+# tagged with the group whose colour it takes. Covers the pose
+# skeleton plus the 21-bone topology of each hand. The face mesh
+# is left unconnected (it is a dense point cloud, not a line rig).
+connections:
+  - {edge: [0, 1], group: pose_face}
+  - {edge: [1, 2], group: pose_face}
+  - {edge: [2, 3], group: pose_face}
+  - {edge: [3, 7], group: pose_face}
+  - {edge: [0, 4], group: pose_face}
+  - {edge: [4, 5], group: pose_face}
+  - {edge: [5, 6], group: pose_face}
+  - {edge: [6, 8], group: pose_face}
+  - {edge: [9, 10], group: pose_face}
+  - {edge: [11, 12], group: torso}
+  - {edge: [11, 23], group: torso}
+  - {edge: [12, 24], group: torso}
+  - {edge: [23, 24], group: torso}
+  - {edge: [11, 13], group: left_arm}
+  - {edge: [13, 15], group: left_arm}
+  - {edge: [15, 17], group: left_arm}
+  - {edge: [15, 19], group: left_arm}
+  - {edge: [15, 21], group: left_arm}
+  - {edge: [12, 14], group: right_arm}
+  - {edge: [14, 16], group: right_arm}
+  - {edge: [16, 18], group: right_arm}
+  - {edge: [16, 20], group: right_arm}
+  - {edge: [16, 22], group: right_arm}
+  - {edge: [23, 25], group: left_leg}
+  - {edge: [25, 27], group: left_leg}
+  - {edge: [27, 29], group: left_leg}
+  - {edge: [27, 31], group: left_leg}
+  - {edge: [24, 26], group: right_leg}
+  - {edge: [26, 28], group: right_leg}
+  - {edge: [28, 30], group: right_leg}
+  - {edge: [28, 32], group: right_leg}
+  - {edge: [501, 502], group: left_hand}
+  - {edge: [502, 503], group: left_hand}
+  - {edge: [503, 504], group: left_hand}
+  - {edge: [504, 505], group: left_hand}
+  - {edge: [501, 506], group: left_hand}
+  - {edge: [506, 507], group: left_hand}
+  - {edge: [507, 508], group: left_hand}
+  - {edge: [508, 509], group: left_hand}
+  - {edge: [506, 510], group: left_hand}
+  - {edge: [510, 511], group: left_hand}
+  - {edge: [511, 512], group: left_hand}
+  - {edge: [512, 513], group: left_hand}
+  - {edge: [510, 514], group: left_hand}
+  - {edge: [514, 515], group: left_hand}
+  - {edge: [515, 516], group: left_hand}
+  - {edge: [516, 517], group: left_hand}
+  - {edge: [514, 518], group: left_hand}
+  - {edge: [518, 519], group: left_hand}
+  - {edge: [519, 520], group: left_hand}
+  - {edge: [520, 521], group: left_hand}
+  - {edge: [501, 518], group: left_hand}
+  - {edge: [522, 523], group: right_hand}
+  - {edge: [523, 524], group: right_hand}
+  - {edge: [524, 525], group: right_hand}
+  - {edge: [525, 526], group: right_hand}
+  - {edge: [522, 527], group: right_hand}
+  - {edge: [527, 528], group: right_hand}
+  - {edge: [528, 529], group: right_hand}
+  - {edge: [529, 530], group: right_hand}
+  - {edge: [527, 531], group: right_hand}
+  - {edge: [531, 532], group: right_hand}
+  - {edge: [532, 533], group: right_hand}
+  - {edge: [533, 534], group: right_hand}
+  - {edge: [531, 535], group: right_hand}
+  - {edge: [535, 536], group: right_hand}
+  - {edge: [536, 537], group: right_hand}
+  - {edge: [537, 538], group: right_hand}
+  - {edge: [535, 539], group: right_hand}
+  - {edge: [539, 540], group: right_hand}
+  - {edge: [540, 541], group: right_hand}
+  - {edge: [541, 542], group: right_hand}
+  - {edge: [522, 539], group: right_hand}
+
+# ── Segments ─────────────────────────────────────────────────
+# Named bones whose 3D length is a real physical distance and so
+# should stay roughly constant across frames — a cheap quality
+# check on the reconstruction.
+segments:
+  - {name: left_upperarm, from: 11, to: 13}
+  - {name: left_forearm, from: 13, to: 15}
+  - {name: right_upperarm, from: 12, to: 14}
+  - {name: right_forearm, from: 14, to: 16}
+  - {name: left_thigh, from: 23, to: 25}
+  - {name: left_shin, from: 25, to: 27}
+  - {name: right_thigh, from: 24, to: 26}
+  - {name: right_shin, from: 26, to: 28}
+  - {name: shoulder_width, from: 11, to: 12}
+  - {name: hip_width, from: 23, to: 24}
+

@@ -81,6 +81,7 @@ class PoseDefinition:
     connections: List[Connection]
     symmetry: Dict = field(default_factory=dict)
     anatomy: Dict[str, int] = field(default_factory=dict)
+    roles: Dict[str, List[str]] = field(default_factory=dict)
     virtual_landmarks: List[Dict] = field(default_factory=list)
     segments: List[Dict] = field(default_factory=list)
 
@@ -134,6 +135,7 @@ class PoseDefinition:
             connections=connections,
             symmetry=symmetry,
             anatomy={k: int(v) for k, v in raw.get("anatomy", {}).items()},
+            roles={k: list(v) for k, v in raw.get("roles", {}).items()},
             virtual_landmarks=raw.get("virtual_landmarks", []),
             segments=raw.get("segments", []),
         )
@@ -238,6 +240,51 @@ class PoseDefinition:
     def group_indices(self, group: str) -> Tuple[int, ...]:
         """Indices belonging to a named group."""
         return self.groups[group].indices
+
+    def role_indices(self, role: str) -> List[int]:
+        """Sorted indices for a semantic role ('face', 'hand', 'body', ...).
+
+        Resolution order:
+        1. If the descriptor declares a ``roles`` block, union the groups it
+           lists for this role.
+        2. Otherwise fall back to name heuristics: a group whose name equals
+           the role, contains it (e.g. 'left_hand' for 'hand'), or — for
+           'face' — the 'face'/'pose_face' groups.
+
+        This lets skeletons with different group naming (mediapipe_pose's
+        'hand' vs mediapipe_holistic's 'left_hand'/'right_hand') answer the
+        same question without callers hard-coding group names.
+        """
+        # 1. Explicit roles block
+        if role in self.roles:
+            idx = set()
+            for gname in self.roles[role]:
+                if gname in self.groups:
+                    idx.update(self.groups[gname].indices)
+            return sorted(idx)
+
+        # 2. Name-heuristic fallback
+        idx = set()
+        for gname, g in self.groups.items():
+            if gname == role or role in gname.split("_"):
+                idx.update(g.indices)
+        return sorted(idx)
+
+    @property
+    def face_indices(self) -> List[int]:
+        """All landmark indices belonging to the face (role-resolved)."""
+        return self.role_indices("face")
+
+    @property
+    def hand_indices(self) -> List[int]:
+        """All landmark indices belonging to the hands (role-resolved)."""
+        return self.role_indices("hand")
+
+    @property
+    def body_indices(self) -> List[int]:
+        """Indices that are neither face nor hand (role-resolved)."""
+        exclude = set(self.face_indices) | set(self.hand_indices)
+        return [i for i in range(self.num_landmarks) if i not in exclude]
 
     @property
     def edges(self) -> List[Tuple[int, int]]:

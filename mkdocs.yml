@@ -46,6 +46,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Skeletons: skeletons.md
   - 3D Calibration Guide: calibration.md
   - Pipeline:
       - Overview: pipeline/index.md

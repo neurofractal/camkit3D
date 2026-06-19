@@ -1,10 +1,11 @@
 # ============================================================
 # CamKit3D skeleton descriptor — MediaPipe Pose (BlazePose, 33 kp)
 # ------------------------------------------------------------
-# This file is the single source of truth for the MediaPipe Pose
-# topology. It is loaded via camkit3d.skeletons.load(). Other
-# skeletons (e.g. openpose, hand-only) live as sibling YAMLs in
-# this same folder and are auto-discovered by the registry.
+# Describes the 33-landmark body skeleton produced by MediaPipe
+# Pose: the name and anatomical side of every landmark, how they
+# connect into a skeleton, how they group into body parts, and
+# the anchors/segments used for orientation and quality checks.
+# See docs/skeletons.md for the schema reference.
 # ============================================================
 
 metadata:
@@ -19,7 +20,10 @@ metadata:
   schema_version: 1.0
 
 # ── Landmarks ────────────────────────────────────────────────
-# `index` is authoritative and must match MediaPipe's own ordering.
+# The 33 keypoints, one per row. `index` is the position in the
+# coordinate array and must match MediaPipe's own landmark ordering.
+# `name` is a human-readable label; `group` ties it to a body part
+# (see below); `side` is left / right / center.
 landmarks:
   - {index: 0,  name: nose,             group: face,  side: center}
   - {index: 1,  name: left_eye_inner,   group: face,  side: left}
@@ -56,14 +60,14 @@ landmarks:
   - {index: 32, name: right_foot_index, group: leg,   side: right}
 
 # ── Groups ───────────────────────────────────────────────────
-# Semantic groupings used for colouring, filtering and per-group
-# triangulation thresholds. `confidence_threshold` mirrors the
-# values currently hard-coded in pose3d.py so the descriptor can
-# drive triangulation directly.
-#
-# Note the distinction between *colour* groups (anatomical limbs,
-# split L/R) and the face/hand confidence groups. Both live here;
-# code picks whichever it needs.
+# Named sets of landmarks that belong to the same body part. Each
+# group carries a `color` (hex, used when drawing the skeleton) and
+# an optional `confidence_threshold` (the minimum detection
+# confidence a landmark in this group must have to be trusted).
+# The face threshold is highest because face points are the most
+# prone to being hallucinated when occluded or at the frame edge.
+# Groups may overlap (e.g. a shoulder is in both `torso` and an
+# arm group); a landmark can belong to more than one.
 groups:
   face:
     indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -95,8 +99,9 @@ groups:
     confidence_threshold: 0.3
 
 # ── Connections (skeleton edges) ─────────────────────────────
-# Each edge names the group that determines its draw colour. This
-# replaces the _connection_color() heuristic in viewer.py.
+# Pairs of landmark indices that are joined by a bone when the
+# skeleton is drawn. Each edge names the group whose colour it
+# takes. This is the line topology of the skeleton.
 connections:
   - {edge: [0, 1],   group: face}
   - {edge: [1, 2],   group: face}
@@ -131,12 +136,8 @@ connections:
   - {edge: [28, 32], group: right_leg}
 
 # ── Anatomy anchors ──────────────────────────────────────────
-# Semantic role -> landmark index. Decouples anatomical *roles* from
-# landmark *names*, so orientation/alignment code can ask for, e.g.,
-# the left hip without hard-coding index 23. A skeleton that lacks a
-# role simply omits it; consumers that need it should check and raise
-# a clear error. These power detect_person_orientation() and the
-# body-centre/up/forward logic in analysis.py.
+# These define the reference points for
+# computing body orientation (up / forward) and the body centre.
 anatomy:
   nose: 0
   left_shoulder: 11
@@ -147,9 +148,10 @@ anatomy:
   right_ankle: 28
 
 # ── Bilateral symmetry ───────────────────────────────────────
-# Left/right index pairs (for mirroring/augmentation, lateralisation
-# analyses, and detecting L/R swaps under occlusion). `midline` lists
-# landmarks with no mirror partner.
+# Left/right landmark pairs that mirror each other across the body
+# midline. `midline` lists landmarks that lie on the centre line and
+# have no mirror partner. Useful for left/right augmentation,
+# lateralisation analyses, and detecting L/R swaps under occlusion.
 symmetry:
   midline: [0]
   pairs:
@@ -171,18 +173,21 @@ symmetry:
     - [31, 32]
 
 # ── Virtual landmarks ────────────────────────────────────────
-# MediaPipe provides no body-centre points. These are computed on
-# demand from the listed source indices. Useful as a body origin
-# for proximity / orientation measures in interaction analyses.
+# Extra points that MediaPipe does not output directly, defined as
+# a function of real landmarks (here, midpoints). e.g. `pelvis` is
+# the midpoint of the two hips. Provide a stable body origin for
+# proximity / orientation measures in interaction analyses.
 virtual_landmarks:
   - {name: pelvis, source: [23, 24], method: midpoint}
   - {name: neck,   source: [11, 12], method: midpoint}
   - {name: head,   source: [7, 8],   method: midpoint}
 
 # ── Segments ─────────────────────────────────────────────────
-# Named bones whose 3D length should stay ~constant across frames.
-# A rigidity check on these is a cheap QC signal complementing the
-# reprojection-error filtering in pose3d.py.
+# Named bones, each a pair of landmarks whose 3D distance is a
+# real physical length (e.g. a forearm) and so should stay roughly
+# constant across frames. Comparing measured length against its
+# expected stability is a cheap quality-control signal on the
+# reconstruction.
 segments:
   - {name: left_upperarm,  from: 11, to: 13}
   - {name: left_forearm,   from: 13, to: 15}
