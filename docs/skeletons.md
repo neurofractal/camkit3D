@@ -36,7 +36,6 @@ keypoint array.
 ---
 
 ## Loading a skeleton
-
 Skeletons are loaded by **id**, which is the filename stem of the descriptor
 (`mediapipe_pose.yaml` → `"mediapipe_pose"`):
 
