@@ -17,7 +17,7 @@ This means you can swap MediaPipe Pose for any other pose estimator you wish.
 
 ## What is a skeleton?
 
-A skeleton is a **named set of landmarks plus the relationships between them**.
+A skeleton is a named set of landmarks and the relationships between them.
 
 - **What are the points?** An ordered list of landmarks, each with an index, a
    name, the body part it belongs to, and its left/right/center side.
@@ -36,21 +36,17 @@ keypoint array.
 ---
 
 ## Loading a skeleton
-Skeletons are loaded by **id**, which is the filename stem of the descriptor
+Skeletons are loaded by **id**, which is the filename of the descriptor
 (`mediapipe_pose.yaml` → `"mediapipe_pose"`):
 
 ```python
 from camkit3d import skeletons
 
-pose = skeletons.load("mediapipe_pose")     # load by id
-pose = skeletons.load()                      # default skeleton (mediapipe_pose)
+pose = skeletons.load("mediapipe_pose")  # load by id
+pose = skeletons.load()                  # default skeleton (mediapipe_pose)
 
-skeletons.available()                        # ['mediapipe_holistic', 'mediapipe_pose']
+skeletons.available()                    # ['mediapipe_holistic', 'mediapipe_pose']
 ```
-
-Loads are cached, so calling `load()` repeatedly is free and returns the same
-object. Passing an unknown id raises a `FileNotFoundError` that lists what *is*
-available.
 
 Once loaded, a skeleton provides everything the pipelines need:
 
@@ -72,7 +68,7 @@ pose.edge_colors              # ['#FF6B6B', ...]       — colour per edge
 pose.confidence_thresholds()  # per-landmark threshold array, shape (33,)
 ```
 
-The pipelines accept a skeleton wherever relevant:
+Pipeline functions will accept a skeleton when relevant:
 
 ```python
 from camkit3d.pose3d import Pose3DProjector
@@ -86,40 +82,7 @@ projector = Pose3DProjector(
 
 ---
 
-## Anatomy of a descriptor
-
-A descriptor is a YAML file with the sections below. Only `metadata`,
-`landmarks`, `groups`, and `connections` are required; the rest are optional. The canonical examples are
-[`mediapipe_pose.yaml`](#example-mediapipe-pose-33-landmarks)
-and [`mediapipe_holistic.yaml`](#example-mediapipe-holistic-543-landmarks).
-
-## Validation
-
-`skeletons.load()` validates a descriptor on load and raises a `ValueError`
-describing the first problem it finds. The checks:
-
-* `num_landmarks` matches the number of landmark rows.
-* Landmark indices are contiguous `0 .. n-1`.
-* Every group index references a real landmark.
-* Every connection references real landmarks and a known group.
-* Symmetry pairs and anatomy anchors are in range.
-
-If validation fails, fix the descriptor — the pipelines will not accept an invalid
-skeleton.
-
----
-
-## Writing a new skeleton
-
-1. Create `src/camkit3d/skeletons/data/<your_id>.yaml`.
-2. Fill in `metadata` (with `skeleton_id: <your_id>` matching the filename),
-   `landmarks`, `groups`, and `connections`. Add `anatomy` if you want
-   orientation/alignment to work, and `roles` if your hand/face groups aren't
-   named `hand`/`face`.
-3. Load it: `skeletons.load("<your_id>")`. Fix any validation errors.
-4. Use it: pass `skeleton="<your_id>"` to the pipelines.
-
-## Example: MediaPipe Pose (33 landmarks)
+## Default Skeleton: MediaPipe Pose (33 landmarks)
 
 The baseline skeleton: a single person's body, 33 landmarks, with a real
 per-point visibility score.
@@ -137,7 +100,7 @@ pose.anchor("left_hip") # 23
 
 ![](images/pose_landmarks_index.png)
 
-## Example: MediaPipe Holistic (543 landmarks)
+## Alternative Skeleton: MediaPipe Holistic (543 landmarks)
 
 The combined skeleton: body + dense face mesh + detailed hands, concatenated
 into one index space.
@@ -148,8 +111,6 @@ into one index space.
 | face       | 33 – 500  | 468   | dense face mesh                        |
 | left hand  | 501 – 521 | 21    | full finger articulation               |
 | right hand | 522 – 542 | 21    | full finger articulation               |
-
-Two things to note:
 
 * **Face/hand confidence is presence, not quality** (see the note under
   `groups`). The 468 face points especially do not triangulate well across
@@ -162,6 +123,21 @@ h.num_landmarks    # 543
 h.hand_indices     # [501..542]  — both hands, role-resolved
 h.body_indices     # the 33 pose points
 ```
+
+---
+
+## Writing a new skeleton
+
+1. Create `src/camkit3d/skeletons/data/<your_id>.yaml`.
+2. Fill in `metadata` (with `skeleton_id: <your_id>` matching the filename),
+   `landmarks`, `groups`, and `connections`. Add `anatomy` if you want
+   orientation/alignment to work, and `roles` if your hand/face groups aren't
+   named `hand`/`face`.
+3. Load it: `skeletons.load("<your_id>")`. Fix any validation errors.
+4. Use it: pass `skeleton="<your_id>"` to the pipelines.
+
+When making the YAML file, only `metadata`,`landmarks`, `groups`, and `connections` 
+are required. See the [default CamKit3d YAML file](https://github.com/neurofractal/camkit3D/blob/main/src/camkit3d/skeletons/data/mediapipe_pose.yaml) for more details.
 
 ---
 
