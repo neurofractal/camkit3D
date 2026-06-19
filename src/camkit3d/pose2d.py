@@ -799,7 +799,7 @@ class PoseProcessor:
             logger.info(f"  - NaN values interpolated: {n_interpolated}")
         
         return smoothed
-    
+
     @staticmethod
     def detect_face_at_edge(
         keypoints_2d: np.ndarray,
@@ -869,224 +869,370 @@ class PoseProcessor:
         return suspicious_mask
     
     @staticmethod
-    def filter_and_clean_keypoints_2d(
+    def remove_lower_body_keypoints(
+        keypoints_2d: np.ndarray
+    ) -> np.ndarray:
+        """
+        Remove lower-body landmarks (hips and everything below) by setting them to NaN.
+
+        For upper-body tasks (face, shoulders, arms, hands) the legs and feet carry
+        no useful signal and only add noise to downstream triangulation, so they are
+        dropped here. Face, shoulder, arm and hand landmarks are left untouched.
+
+        Args:
+            keypoints_2d: Shape (n_frames, n_landmarks, 3), last dim is [x, y, confidence]
+
+        Returns:
+            A copy of the array with REMOVE_LANDMARKS (hips, legs, feet) set to NaN.
+        """
+        cleaned = keypoints_2d.copy()
+        cleaned[:, PoseProcessor.REMOVE_LANDMARKS, :] = np.nan
+        logger.info(f"  ✓ Removed {len(PoseProcessor.REMOVE_LANDMARKS)} landmarks (hips and below)")
+        logger.info(f"  ✓ Kept {len(PoseProcessor.KEEP_LANDMARKS)} landmarks (face, shoulders, arms, hands)")
+        return cleaned
+
+    @staticmethod
+    def clean_face_points(
         keypoints_2d: np.ndarray,
         frame_width: int,
         frame_height: int,
-        remove_lower_body: bool = True,
-        detect_face_edge: bool = True,
         face_edge_strategy: str = 'reduce_confidence',
         edge_margin_px: int = 50,
         confidence_reduction_factor: float = 0.3
-    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Filter and clean 2D keypoints by removing problematic landmarks.
-        
+        Detect and handle spurious face landmarks near the frame edges.
+
+        Face landmarks tend to be unreliable when the face is close to a frame
+        boundary or only partially visible. This detects those frames and either
+        down-weights or removes the affected face landmarks. Only face landmarks
+        are ever modified — shoulders, arms and hands keep their original values.
+
         Args:
-            keypoints_2d: Shape (n_frames, n_landmarks, 3) where last dim is [x, y, confidence]
+            keypoints_2d: Shape (n_frames, n_landmarks, 3), last dim is [x, y, confidence]
             frame_width: Width of video frame in pixels
             frame_height: Height of video frame in pixels
-            remove_lower_body: Remove hips and all landmarks below (default: True)
-            detect_face_edge: Detect face landmarks at frame edges (default: True)
             face_edge_strategy: How to handle suspicious face landmarks:
                 - 'reduce_confidence': Multiply confidence by reduction factor (default)
                 - 'remove': Set suspicious face landmarks to NaN
                 - 'keep': Keep for manual handling (just return mask)
             edge_margin_px: Pixels from edge for face detection (default: 50)
             confidence_reduction_factor: Factor to reduce confidence by (default: 0.3)
-        
+
         Returns:
             Tuple of:
-            - Cleaned keypoints array
-            - Face edge mask (if detect_face_edge=True), else None
+            - Cleaned keypoints array (a copy)
+            - Face edge mask of shape (n_frames, n_landmarks)
         """
         cleaned = keypoints_2d.copy()
-        
-        # Step 1: Remove hips and below
-        if remove_lower_body:
-            cleaned[:, PoseProcessor.REMOVE_LANDMARKS, :] = np.nan
-            logger.info(f"  ✓ Removed {len(PoseProcessor.REMOVE_LANDMARKS)} landmarks (hips and below)")
-            logger.info(f"  ✓ Kept {len(PoseProcessor.KEEP_LANDMARKS)} landmarks (face, shoulders, arms, hands)")
-        
-        # Step 2: Detect and handle face at edge
-        face_edge_mask = None
-        if detect_face_edge:
-            face_edge_mask = PoseProcessor.detect_face_at_edge(
-                keypoints_2d,  # Use original, not cleaned
-                frame_width,
-                frame_height,
-                edge_margin_px=edge_margin_px
-            )
-            
-            n_suspicious = np.sum(face_edge_mask[:, PoseProcessor.FACE_LANDMARKS])
-            n_face_total = face_edge_mask.shape[0] * len(PoseProcessor.FACE_LANDMARKS)
-            pct_suspicious = 100 * n_suspicious / n_face_total
-            
-            # Apply strategy
-            if face_edge_strategy == 'reduce_confidence':
-                # Only reduce confidence for face landmarks
-                face_mask_only = face_edge_mask.copy()
-                for i in range(33):
-                    if i not in PoseProcessor.FACE_LANDMARKS:
-                        face_mask_only[:, i] = False
-                
-                cleaned[face_mask_only, 2] *= confidence_reduction_factor
-                logger.info(f"  ✓ Reduced confidence for {n_suspicious} suspicious face landmarks "
-                          f"({pct_suspicious:.1f}%) to {confidence_reduction_factor*100:.0f}%")
-            
-            elif face_edge_strategy == 'remove':
-                # Only remove face landmarks
-                face_mask_only = face_edge_mask.copy()
-                for i in range(33):
-                    if i not in PoseProcessor.FACE_LANDMARKS:
-                        face_mask_only[:, i] = False
-                
-                cleaned[face_mask_only] = np.nan
-                logger.info(f"  ✓ Removed {n_suspicious} suspicious face landmarks ({pct_suspicious:.1f}%)")
-            
-            elif face_edge_strategy == 'keep':
-                logger.info(f"  ✓ Detected {n_suspicious}/{n_face_total} ({pct_suspicious:.1f}%) "
-                          f"suspicious face landmarks (mask returned for manual handling)")
-            
-            else:
-                raise ValueError(f"Unknown face_edge_strategy: {face_edge_strategy}")
-        
+
+        face_edge_mask = PoseProcessor.detect_face_at_edge(
+            keypoints_2d,  # Use the input as-is for detection
+            frame_width,
+            frame_height,
+            edge_margin_px=edge_margin_px
+        )
+
+        n_suspicious = np.sum(face_edge_mask[:, PoseProcessor.FACE_LANDMARKS])
+        n_face_total = face_edge_mask.shape[0] * len(PoseProcessor.FACE_LANDMARKS)
+        pct_suspicious = 100 * n_suspicious / n_face_total
+
+        # Restrict any action to face landmarks only
+        face_mask_only = face_edge_mask.copy()
+        for i in range(33):
+            if i not in PoseProcessor.FACE_LANDMARKS:
+                face_mask_only[:, i] = False
+
+        if face_edge_strategy == 'reduce_confidence':
+            cleaned[face_mask_only, 2] *= confidence_reduction_factor
+            logger.info(f"  ✓ Reduced confidence for {n_suspicious} suspicious face landmarks "
+                      f"({pct_suspicious:.1f}%) to {confidence_reduction_factor*100:.0f}%")
+
+        elif face_edge_strategy == 'remove':
+            cleaned[face_mask_only] = np.nan
+            logger.info(f"  ✓ Removed {n_suspicious} suspicious face landmarks ({pct_suspicious:.1f}%)")
+
+        elif face_edge_strategy == 'keep':
+            logger.info(f"  ✓ Detected {n_suspicious}/{n_face_total} ({pct_suspicious:.1f}%) "
+                      f"suspicious face landmarks (mask returned for manual handling)")
+
+        else:
+            raise ValueError(f"Unknown face_edge_strategy: {face_edge_strategy}")
+
         return cleaned, face_edge_mask
-    
-    @staticmethod
-    def clean_keypoints_directory(
-        input_dir: Union[str, Path],
-        output_dir: Union[str, Path],
-        frame_width: int,
-        frame_height: int,
-        remove_lower_body: bool = True,
-        detect_face_edge: bool = True,
-        face_edge_strategy: str = 'reduce_confidence',
-        edge_margin_px: int = 50,
-        confidence_reduction_factor: float = 0.3,
-        pattern: str = "*_keypoints.npy",
-        save_face_masks: bool = True
-    ) -> Dict[str, np.ndarray]:
-        """
-        Clean all keypoint files in a directory.
-        
-        This is the main convenience method for batch processing 2D keypoints.
-        
-        Args:
-            input_dir: Directory containing keypoint files
-            output_dir: Directory to save cleaned files
-            frame_width: Width of video frames
-            frame_height: Height of video frames
-            remove_lower_body: Remove hips and below (default: True)
-            detect_face_edge: Detect face at edge (default: True)
-            face_edge_strategy: 'reduce_confidence', 'remove', or 'keep' (default: 'reduce_confidence')
-            edge_margin_px: Distance from frame edge (in pixels) to consider "at edge".
-                           Lower = more strict (e.g., 30px), Higher = more lenient (e.g., 100px).
-                           Default: 50px. Recommended range: 30-100px.
-            confidence_reduction_factor: Factor to multiply confidence by for suspicious face landmarks.
-                                        Lower = more aggressive filtering (e.g., 0.1 = 10% confidence),
-                                        Higher = less aggressive (e.g., 0.5 = 50% confidence).
-                                        Default: 0.3 (30% confidence). Recommended range: 0.1-0.5.
-            pattern: Glob pattern for keypoint files (default: "*_keypoints.npy")
-            save_face_masks: Save face edge masks (default: True)
-        
-        Returns:
-            Dictionary mapping camera names to cleaned keypoint arrays
-        
-        Example:
-            >>> from camkit3d.pose2d import PoseProcessor
-            >>> 
-            >>> # Standard cleaning
-            >>> cleaned = PoseProcessor.clean_keypoints_directory(
-            ...     input_dir="/path/to/data_2d",
-            ...     output_dir="/path/to/data_2d_cleaned",
-            ...     frame_width=1920,
-            ...     frame_height=1080
-            ... )
-            >>> 
-            >>> # More aggressive face filtering
-            >>> cleaned = PoseProcessor.clean_keypoints_directory(
-            ...     input_dir="/path/to/data_2d",
-            ...     output_dir="/path/to/data_2d_cleaned",
-            ...     frame_width=1920,
-            ...     frame_height=1080,
-            ...     edge_margin_px=75,  # Larger margin catches more
-            ...     confidence_reduction_factor=0.1  # Reduce to 10%
-            ... )
-        """
-        input_dir = Path(input_dir)
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Find all keypoint files
-        files = list(input_dir.glob(pattern))
-        
-        if not files:
-            logger.warning(f"No files found matching pattern: {pattern}")
-            return {}
-        
-        logger.info(f"Found {len(files)} keypoint files to clean")
-        logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
-        logger.info(f"Remove lower body: {remove_lower_body}")
-        logger.info(f"Detect face edge: {detect_face_edge}")
-        if detect_face_edge:
-            logger.info(f"Face edge strategy: {face_edge_strategy}")
-            logger.info(f"Edge margin: {edge_margin_px}px (distance from frame edge)")
-            if face_edge_strategy == 'reduce_confidence':
-                logger.info(f"Confidence reduction: {confidence_reduction_factor} "
-                          f"(suspicious faces → {confidence_reduction_factor*100:.0f}% confidence)")
-        logger.info("="*70)
-        
-        cleaned_dict = {}
-        
-        for file_path in files:
-            # Keep the original filename (e.g., camera_0_synchronized_keypoints.npy)
-            original_filename = file_path.name
-            camera_name = file_path.stem  # For dict key (e.g., camera_0_synchronized_keypoints)
-            
-            logger.info(f"\nProcessing {original_filename}...")
-            
-            # Load
-            keypoints_2d = np.load(file_path)
-            logger.info(f"  Loaded: {keypoints_2d.shape}")
-            
-            # Clean
-            cleaned, face_mask = PoseProcessor.filter_and_clean_keypoints_2d(
-                keypoints_2d,
-                frame_width,
-                frame_height,
-                remove_lower_body=remove_lower_body,
-                detect_face_edge=detect_face_edge,
-                face_edge_strategy=face_edge_strategy,
-                edge_margin_px=edge_margin_px,
-                confidence_reduction_factor=confidence_reduction_factor
-            )
-            
-            cleaned_dict[camera_name] = cleaned
-            
-            # Save with ORIGINAL filename (not _cleaned suffix)
-            output_path = output_dir / original_filename
-            np.save(output_path, cleaned)
-            logger.info(f"  ✓ Saved: {output_path}")
-            
-            # Save face edge mask (with _face_edge_mask suffix)
-            if save_face_masks and face_mask is not None:
-                mask_filename = original_filename.replace('.npy', '_face_edge_mask.npy')
-                mask_path = output_dir / mask_filename
-                np.save(mask_path, face_mask)
-                logger.info(f"  ✓ Saved face mask: {mask_path}")
-        
-        logger.info("\n" + "="*70)
-        logger.info("Cleaning complete!")
-        logger.info(f"Output directory: {output_dir}")
-        logger.info("="*70)
-        
-        return cleaned_dict
-    
+
     def __del__(self):
         """Cleanup MediaPipe resources."""
         if hasattr(self, '_pose') and self._pose is not None:
             self._pose.close()
+
+
+# ── Standalone batch functions ────────────────────────────────────────────────
+# These operate on directories of keypoint files and don't need a PoseProcessor
+# instance. They wrap the per-array methods on PoseProcessor.
+
+def smooth_keypoints_directory(
+    input_dir: Union[str, Path],
+    output_dir: Optional[Union[str, Path]] = None,
+    cutoff_freq: float = 4.0,
+    sampling_freq: float = 30.0,
+    order: int = 4,
+    interpolate_nans: bool = True,
+    restore_nans: bool = True,
+    pattern: str = "*_keypoints.npy",
+) -> Dict[str, np.ndarray]:
+    """
+    Batch temporal smoothing: Butterworth low-pass over every keypoint file in a directory.
+
+    If output_dir is None, smoothed data overwrites the raw files in place.
+    Only x, y are filtered; the confidence channel (index 2) is left untouched.
+
+    Args:
+        input_dir: Directory containing keypoint files (e.g. the data_2d folder)
+        output_dir: Directory to save smoothed files. If None (default), files
+                    are overwritten in place in input_dir.
+        cutoff_freq: Low-pass cutoff in Hz (default: 4.0). Lower = smoother.
+        sampling_freq: Frame rate in Hz (default: 30.0). Must exceed 2*cutoff_freq.
+        order: Butterworth filter order (default: 4)
+        interpolate_nans: Interpolate NaNs before filtering (default: True)
+        restore_nans: Restore original NaN positions after filtering (default: True)
+        pattern: Glob pattern for keypoint files (default: "*_keypoints.npy")
+
+    Returns:
+        Dictionary mapping camera names to smoothed keypoint arrays.
+
+    Example:
+        >>> from camkit3d.pose2d import smooth_keypoints_directory
+        >>> # Overwrite raw keypoints in place
+        >>> smooth_keypoints_directory(
+        ...     input_dir="/path/to/data_2d",
+        ...     cutoff_freq=4.0,
+        ...     sampling_freq=29.97,
+        ... )
+    """
+    input_dir = Path(input_dir)
+    output_dir = input_dir if output_dir is None else Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    in_place = output_dir.resolve() == input_dir.resolve()
+
+    if cutoff_freq >= sampling_freq / 2:
+        raise ValueError(
+            f"cutoff_freq ({cutoff_freq} Hz) must be < Nyquist ({sampling_freq/2} Hz)"
+        )
+
+    nyquist = sampling_freq / 2.0
+    b, a = butter(order, cutoff_freq / nyquist, btype="low", analog=False)
+
+    files = [f for f in sorted(input_dir.glob(pattern))
+             if not f.name.endswith("_face_edge_mask.npy")]
+    if not files:
+        logger.warning(f"No files found matching pattern: {pattern}")
+        return {}
+
+    logger.info(f"Found {len(files)} keypoint files to smooth")
+    logger.info(f"Cutoff: {cutoff_freq}Hz | Sampling: {sampling_freq}Hz | Order: {order}")
+    logger.info(f"Writing {'in place (overwriting raw files)' if in_place else f'to {output_dir}'}")
+
+    min_points = max(2 * order + 1, 10)
+    smoothed_dict = {}
+
+    for file_path in files:
+        camera_name = file_path.stem
+        logger.info(f"\nProcessing {file_path.name}...")
+        kp = np.load(file_path)
+        logger.info(f"  Loaded: {kp.shape}")
+
+        smoothed = kp.copy()
+        n_frames, n_kp, _ = kp.shape
+
+        for k in range(n_kp):
+            for dim in range(2):  # x, y only
+                sig = kp[:, k, dim].copy()
+                nan_mask = np.isnan(sig)
+                n_nan = int(nan_mask.sum())
+
+                if n_frames - n_nan < min_points:
+                    continue  # too few valid points; leave untouched
+
+                if n_nan > 0 and interpolate_nans:
+                    valid = np.where(~nan_mask)[0]
+                    vals = sig[~nan_mask]
+                    interp = interp1d(valid, vals, kind="linear",
+                                      bounds_error=False,
+                                      fill_value=(vals[0], vals[-1]))
+                    sig = interp(np.arange(n_frames))
+                elif n_nan > 0:
+                    continue
+
+                filt = filtfilt(b, a, sig)
+                if restore_nans and n_nan > 0:
+                    filt[nan_mask] = np.nan
+                smoothed[:, k, dim] = filt
+
+        smoothed_dict[camera_name] = smoothed
+        np.save(output_dir / file_path.name, smoothed)
+        logger.info(f"  ✓ Saved: {output_dir / file_path.name}")
+
+    logger.info("\n" + "="*70)
+    logger.info("Smoothing complete!")
+    logger.info(f"Output directory: {output_dir}")
+    logger.info("="*70)
+
+    return smoothed_dict
+
+
+def remove_lower_body_directory(
+    input_dir: Union[str, Path],
+    output_dir: Optional[Union[str, Path]] = None,
+    pattern: str = "*_keypoints.npy",
+) -> Dict[str, np.ndarray]:
+    """
+    Batch lower-body removal: NaN out hips/legs/feet for every keypoint file in a directory.
+
+    If output_dir is None, results overwrite the input files in place.
+
+    Args:
+        input_dir: Directory containing keypoint files
+        output_dir: Directory to save results. If None (default), overwrite in place.
+        pattern: Glob pattern for keypoint files (default: "*_keypoints.npy")
+
+    Returns:
+        Dictionary mapping camera names to processed keypoint arrays.
+
+    Example:
+        >>> from camkit3d.pose2d import remove_lower_body_directory
+        >>> remove_lower_body_directory(
+        ...     input_dir="/path/to/data_2d",
+        ...     output_dir="/path/to/data_2d_upper",
+        ... )
+    """
+    input_dir = Path(input_dir)
+    output_dir = input_dir if output_dir is None else Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    in_place = output_dir.resolve() == input_dir.resolve()
+
+    files = [f for f in sorted(input_dir.glob(pattern))
+             if not f.name.endswith("_face_edge_mask.npy")]
+    if not files:
+        logger.warning(f"No files found matching pattern: {pattern}")
+        return {}
+
+    logger.info(f"Found {len(files)} keypoint files for lower-body removal")
+    logger.info(f"Writing {'in place (overwriting input files)' if in_place else f'to {output_dir}'}")
+    logger.info("="*70)
+
+    result_dict = {}
+    for file_path in files:
+        camera_name = file_path.stem
+        logger.info(f"\nProcessing {file_path.name}...")
+        kp = np.load(file_path)
+        logger.info(f"  Loaded: {kp.shape}")
+
+        kept = PoseProcessor.remove_lower_body_keypoints(kp)
+        result_dict[camera_name] = kept
+
+        np.save(output_dir / file_path.name, kept)
+        logger.info(f"  ✓ Saved: {output_dir / file_path.name}")
+
+    logger.info("\n" + "="*70)
+    logger.info("Lower-body removal complete!")
+    logger.info(f"Output directory: {output_dir}")
+    logger.info("="*70)
+
+    return result_dict
+
+
+def clean_face_points_directory(
+    input_dir: Union[str, Path],
+    frame_width: int,
+    frame_height: int,
+    output_dir: Optional[Union[str, Path]] = None,
+    face_edge_strategy: str = 'reduce_confidence',
+    edge_margin_px: int = 50,
+    confidence_reduction_factor: float = 0.3,
+    pattern: str = "*_keypoints.npy",
+    save_face_masks: bool = True,
+) -> Dict[str, np.ndarray]:
+    """
+    Batch face cleaning: handle spurious edge face landmarks for every keypoint file.
+
+    If output_dir is None, results overwrite the input files in place.
+
+    Args:
+        input_dir: Directory containing keypoint files
+        frame_width: Width of video frames in pixels
+        frame_height: Height of video frames in pixels
+        output_dir: Directory to save results. If None (default), overwrite in place.
+        face_edge_strategy: 'reduce_confidence', 'remove', or 'keep' (default: 'reduce_confidence')
+        edge_margin_px: Distance from frame edge (px) to consider "at edge" (default: 50)
+        confidence_reduction_factor: Confidence multiplier for suspicious faces (default: 0.3)
+        pattern: Glob pattern for keypoint files (default: "*_keypoints.npy")
+        save_face_masks: Save face edge masks alongside output (default: True)
+
+    Returns:
+        Dictionary mapping camera names to cleaned keypoint arrays.
+
+    Example:
+        >>> from camkit3d.pose2d import clean_face_points_directory
+        >>> clean_face_points_directory(
+        ...     input_dir="/path/to/data_2d_upper",
+        ...     frame_width=1920,
+        ...     frame_height=1080,
+        ...     output_dir="/path/to/data_2d_cleaned",
+        ... )
+    """
+    input_dir = Path(input_dir)
+    output_dir = input_dir if output_dir is None else Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    in_place = output_dir.resolve() == input_dir.resolve()
+
+    files = [f for f in sorted(input_dir.glob(pattern))
+             if not f.name.endswith("_face_edge_mask.npy")]
+    if not files:
+        logger.warning(f"No files found matching pattern: {pattern}")
+        return {}
+
+    logger.info(f"Found {len(files)} keypoint files for face cleaning")
+    logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
+    logger.info(f"Face edge strategy: {face_edge_strategy}")
+    logger.info(f"Edge margin: {edge_margin_px}px")
+    if face_edge_strategy == 'reduce_confidence':
+        logger.info(f"Confidence reduction: {confidence_reduction_factor} "
+                  f"(suspicious faces → {confidence_reduction_factor*100:.0f}% confidence)")
+    logger.info(f"Writing {'in place (overwriting input files)' if in_place else f'to {output_dir}'}")
+    logger.info("="*70)
+
+    cleaned_dict = {}
+    for file_path in files:
+        camera_name = file_path.stem
+        logger.info(f"\nProcessing {file_path.name}...")
+        kp = np.load(file_path)
+        logger.info(f"  Loaded: {kp.shape}")
+
+        cleaned, face_mask = PoseProcessor.clean_face_points(
+            kp,
+            frame_width,
+            frame_height,
+            face_edge_strategy=face_edge_strategy,
+            edge_margin_px=edge_margin_px,
+            confidence_reduction_factor=confidence_reduction_factor,
+        )
+        cleaned_dict[camera_name] = cleaned
+
+        np.save(output_dir / file_path.name, cleaned)
+        logger.info(f"  ✓ Saved: {output_dir / file_path.name}")
+
+        if save_face_masks and face_mask is not None:
+            mask_filename = file_path.name.replace('.npy', '_face_edge_mask.npy')
+            np.save(output_dir / mask_filename, face_mask)
+            logger.info(f"  ✓ Saved face mask: {output_dir / mask_filename}")
+
+    logger.info("\n" + "="*70)
+    logger.info("Face cleaning complete!")
+    logger.info(f"Output directory: {output_dir}")
+    logger.info("="*70)
+
+    return cleaned_dict
 
 
 # Example usage
@@ -1111,8 +1257,8 @@ if __name__ == "__main__":
     print("PROCESSING COMPLETE!")
     print("="*70 + "\n")
     
-    for camera_name, metric in metrics.items():
-        print(metric)
+    # for camera_name, metric in metrics.items():
+    #     print(metric)
     
     print(f"\nOutput files saved to: {OUTPUT_DIR}")
     print(f"  - Labeled videos: {OUTPUT_DIR}/labeled_videos/")
