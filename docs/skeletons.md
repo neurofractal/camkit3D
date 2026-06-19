@@ -12,6 +12,7 @@ control.
 ![](images/image1.gif)
 
 This means you can swap MediaPipe Pose for any other pose estimator you wish.
+
 ---
 
 ## What is a skeleton?
