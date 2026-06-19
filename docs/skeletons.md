@@ -9,11 +9,7 @@ defines the landmarks, how they group into body parts, how they connect into a
 drawable skeleton, and a few reference points used for orientation and quality
 control.
 
-<p align="center">
-  <a href="https://github.com/neurofractal/camkit3D">
-    <img src="https://github.com/neurofractal/camkit3D/tree/main/docs/images/image1.gif" width="250">
-  </a>
-</p>
+![](images/image1.gif)
 
 This means you can swap MediaPipe Pose for any other pose estimator you wish.
 ---
