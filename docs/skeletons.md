@@ -11,7 +11,7 @@ control.
 
 <p align="center">
   <a href="https://github.com/neurofractal/camkit3D">
-    <img src="images/image1.gif" width="250">
+    <img src="https://github.com/neurofractal/camkit3D/tree/main/docs/images/image1.gif" width="250">
   </a>
 </p>
 
@@ -139,7 +139,7 @@ pose.num_landmarks      # 33
 pose.anchor("left_hip") # 23
 ```
 
-./[](images/pose_landmarks_index.png)
+[](https://github.com/neurofractal/camkit3D/tree/main/docs/images/pose_landmarks_index.png)
 
 ## Example: MediaPipe Holistic (543 landmarks)
 
