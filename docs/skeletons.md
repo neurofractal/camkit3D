@@ -1,5 +1,4 @@
 # Skeletons
-
 CamKit3D defaults to the **MediaPipe Pose** skeleton (BlazePose, 33 landmarks,
 MediaPipe 0.10.21). However the package is **skeleton-agnostic** by design: 
 nothing in the 2D detection, 3D triangulation,
