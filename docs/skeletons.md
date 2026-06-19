@@ -139,7 +139,7 @@ pose.num_landmarks      # 33
 pose.anchor("left_hip") # 23
 ```
 
-[](https://github.com/neurofractal/camkit3D/tree/main/docs/images/pose_landmarks_index.png)
+![](images/pose_landmarks_index.png)
 
 ## Example: MediaPipe Holistic (543 landmarks)
 
