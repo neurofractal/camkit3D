@@ -801,58 +801,6 @@ class PoseProcessor:
         return smoothed
     
     @staticmethod
-    def smooth_keypoints_batch(
-        keypoints_dict: Dict[str, np.ndarray],
-        cutoff_freq: float = 2.0,
-        sampling_freq: float = 30.0,
-        order: int = 4,
-        save_dir: Optional[Path] = None
-    ) -> Dict[str, np.ndarray]:
-        """
-        Apply Butterworth smoothing to multiple cameras' keypoint data.
-        
-        Args:
-            keypoints_dict: Dictionary mapping camera names to keypoint arrays
-            cutoff_freq: Cutoff frequency in Hz (default: 2.0)
-            sampling_freq: Sampling frequency in Hz (default: 30.0)
-            order: Filter order (default: 4)
-            save_dir: Optional directory to save smoothed data (default: None)
-        
-        Returns:
-            Dictionary mapping camera names to smoothed keypoint arrays
-        """
-        logger.info(f"Batch smoothing {len(keypoints_dict)} camera views")
-        
-        smoothed_dict = {}
-        
-        for camera_name, keypoints in keypoints_dict.items():
-            logger.info(f"Smoothing {camera_name}...")
-            
-            temp_processor = PoseProcessor.__new__(PoseProcessor)
-            temp_processor.input_dir = Path(".")
-            temp_processor.output_dir = Path(".")
-            
-            smoothed = temp_processor.smooth_keypoints_butterworth(
-                keypoints,
-                cutoff_freq=cutoff_freq,
-                sampling_freq=sampling_freq,
-                order=order
-            )
-            
-            smoothed_dict[camera_name] = smoothed
-            
-            if save_dir is not None:
-                save_dir = Path(save_dir)
-                save_dir.mkdir(parents=True, exist_ok=True)
-                
-                output_path = save_dir / f"{camera_name}_keypoints_smoothed.npy"
-                np.save(output_path, smoothed)
-                logger.info(f"Saved smoothed data to {output_path}")
-        
-        logger.info("Batch smoothing complete!")
-        return smoothed_dict
-    
-    @staticmethod
     def detect_face_at_edge(
         keypoints_2d: np.ndarray,
         frame_width: int,
