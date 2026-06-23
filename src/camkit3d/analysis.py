@@ -1,5 +1,5 @@
 """
-pose3DAnalysis – 3D Pose Analysis & Animation Module
+CamKit3D Analysis Module
 
 Combined toolkit for analysing, visualising, and animating 3D pose data.
 
@@ -15,8 +15,6 @@ Analysis & static plots:
 
 Animation (video export):
   - animate_3d_pose               : single-view animation with many options
-  - animate_3d_pose_auto_orient   : convenience wrapper with auto orientation
-  - animate_3d_pose_multiangle    : 2x2 multi-view animation
 
 Author: CamKit3D (FreeMoCap-compatible workflow)
 Date: 2026-02-13
@@ -836,63 +834,8 @@ def animate_3d_pose(
     print(f"\n✓ Animation saved! {output_path} ({file_size_mb:.2f} MB, {frames_to_animate / fps:.2f}s)")
     return str(output_path)
 
-
 # ============================================================================
-# 7. ANIMATE 3D POSE - AUTO ORIENT WRAPPER
-# ============================================================================
-
-def animate_3d_pose_auto_orient(
-    points_3d,
-    output_path,
-    view_mode="front",
-    auto_detect_orientation=True,
-    skeleton=None,
-    **kwargs,
-):
-    """
-    Convenience wrapper: auto-detect orientation then create animation.
-
-    Parameters
-    ----------
-    points_3d : np.ndarray - (n_frames, n_keypoints, 3)
-    output_path : str
-    view_mode : str - 'front', 'back', 'left_side', 'right_side', 'top', 'diagonal', 'rotating'
-    auto_detect_orientation : bool
-    skeleton : str or PoseDefinition, optional - skeleton for anchors/drawing
-    **kwargs : forwarded to animate_3d_pose()
-
-    Returns
-    -------
-    str - path to saved video
-    """
-    if auto_detect_orientation:
-        orientation = detect_person_orientation(points_3d, skeleton=skeleton)
-        camera_angles = get_optimal_camera_angles(orientation)
-
-        print("\n" + "=" * 70)
-        print("RECOMMENDED CAMERA ANGLES")
-        print("=" * 70)
-        for vn, ang in camera_angles.items():
-            print(f"\n{vn.upper()}: elev={ang['elevation']:.1f} azim={ang['azimuth']:.1f}  ({ang['description']})")
-
-        if view_mode == "rotating":
-            angles = camera_angles["front"]
-            kwargs["elevation"] = angles["elevation"]
-            kwargs["azimuth_start"] = angles["azimuth"]
-            kwargs["view_mode"] = "rotating"
-        elif view_mode in camera_angles:
-            angles = camera_angles[view_mode]
-            kwargs["elevation"] = angles["elevation"]
-            kwargs["azimuth_start"] = angles["azimuth"]
-            kwargs["view_mode"] = "custom"
-        else:
-            print(f"Warning: Unknown view mode '{view_mode}', using default")
-
-    return animate_3d_pose(points_3d, output_path, skeleton=skeleton, **kwargs)
-
-
-# ============================================================================
-# 8. ANIMATE 3D POSE - MULTI-ANGLE (2x2 grid)
+# ANIMATE 3D POSE - MULTI-ANGLE (2x2 grid)
 # ============================================================================
 
 def animate_3d_pose_multiangle(
@@ -1298,7 +1241,7 @@ def interactive_pose_viewer(
     plt.show()
 
 # ============================================================================
-# 10. Interpolate NaNs
+# Interpolate NaNs
 # ============================================================================
 
 def interpolate_nans(

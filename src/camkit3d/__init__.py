@@ -37,7 +37,6 @@ from camkit3d.analysis import (
     align_pose_to_standard_frame,
     plot_aligned_skeleton,
     animate_3d_pose,
-    animate_3d_pose_auto_orient,
     animate_3d_pose_multiangle,
 )
 
