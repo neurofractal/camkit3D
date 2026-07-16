@@ -2,7 +2,7 @@
 
 `camkit3d.analysis`
 
-Tools for inspecting and presenting triangulated 3D pose data (`points_3d`, shape `(n_frames, n_keypoints, 3)`, units in mm, missing detections as NaN). The module is skeleton-agnostic: landmark indices are resolved by name from the loaded descriptor, so the same workflow applies to any defined skeleton (e.g. `mediapipe_pose`, `mediapipe_holistic`).
+Tools for inspecting and presenting triangulated 3D pose data (shape `(n_frames, n_keypoints, 3)`, units in mm, missing detections as NaN). The module is skeleton-agnostic: landmark indices are resolved by name from the loaded descriptor, so the same workflow applies to any defined skeleton (e.g. `mediapipe_pose`, `mediapipe_holistic`).
 
 ```python
 import numpy as np
