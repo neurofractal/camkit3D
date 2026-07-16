@@ -1024,7 +1024,9 @@ def smooth_keypoints_directory(
     b, a = butter(order, cutoff_freq / nyquist, btype="low", analog=False)
 
     files = [f for f in sorted(input_dir.glob(pattern))
-             if not f.name.endswith("_face_edge_mask.npy")]
+            if not f.name.startswith("._")
+            and not f.name.endswith("_face_edge_mask.npy")]
+    
     if not files:
         logger.warning(f"No files found matching pattern: {pattern}")
         return {}
@@ -1187,7 +1189,8 @@ def clean_face_points_directory(
     in_place = output_dir.resolve() == input_dir.resolve()
 
     files = [f for f in sorted(input_dir.glob(pattern))
-             if not f.name.endswith("_face_edge_mask.npy")]
+             if not f.name.startswith("._")
+             and not f.name.endswith("_face_edge_mask.npy")]
     if not files:
         logger.warning(f"No files found matching pattern: {pattern}")
         return {}
