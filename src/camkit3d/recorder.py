@@ -200,28 +200,36 @@ class CameraThread(threading.Thread):
             except Exception as e:
                 logger.error(f"Writer thread error for camera {self.camera_id}: {e}")
     
-    def start_recording(self, output_path: Path) -> bool:
-        """Start recording to file"""
+    def prepare_recording(self, output_path: Path) -> bool:
+        """Phase 1 of starting a recording: do ALL the slow work (open the
+        VideoWriter, reset counters, start the writer thread) but DO NOT begin
+        capturing frames yet. self.recording stays False until arm_recording().
+
+        Splitting prepare/arm lets MultiCamRecorder open every camera's writer
+        first, then flip them all live near-simultaneously, so the cameras
+        start within microseconds of each other instead of being staggered by
+        the (~100 ms) cost of opening each writer in sequence.
+        """
         if not self.is_connected:
             logger.error(f"Camera {self.camera_id} not connected")
             return False
-        
+
         with self._lock:
             try:
                 # Use MJPEG codec - most stable for OpenCV
                 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-                
+
                 # Force .avi extension for MJPEG
                 if output_path.suffix.lower() != '.avi':
                     output_path = output_path.with_suffix('.avi')
-                
+
                 self.video_writer = cv2.VideoWriter(
                     str(output_path),
                     fourcc,
                     self.fps,
                     (self.width, self.height)
                 )
-                
+
                 if not self.video_writer or not self.video_writer.isOpened():
                     logger.error(f"Failed to open video writer for camera {self.camera_id}")
                     if self.video_writer:
@@ -231,28 +239,30 @@ class CameraThread(threading.Thread):
                             pass
                     self.video_writer = None
                     return False
-                
+
                 # Clear the write queue and reset counters
                 while not self._write_queue.empty():
                     try:
                         self._write_queue.get_nowait()
                     except queue.Empty:
                         break
-                
+
                 self.frame_count = 0
                 self.timestamps = []
-                
-                # Start the dedicated writer thread
+
+                # Start the dedicated writer thread. It will sit idle (the
+                # capture loop only enqueues frames once self.recording is True),
+                # so starting it here costs nothing but removes it from the
+                # critical arm path.
                 self._writer_stop.clear()
                 self._writer_thread = threading.Thread(target=self._writer_loop, daemon=True)
                 self._writer_thread.start()
-                
-                self.recording = True
-                logger.info(f"Camera {self.camera_id} recording to {output_path}")
+
+                logger.info(f"Camera {self.camera_id} prepared, writing to {output_path}")
                 return True
-                
+
             except Exception as e:
-                logger.error(f"Error starting recording on camera {self.camera_id}: {e}")
+                logger.error(f"Error preparing recording on camera {self.camera_id}: {e}")
                 if self.video_writer:
                     try:
                         self.video_writer.release()
@@ -260,17 +270,45 @@ class CameraThread(threading.Thread):
                         pass
                     self.video_writer = None
                 return False
+
+    def arm_recording(self) -> None:
+        """Phase 2: flip the recording flag live. This is the ONLY thing that
+        decides which frames land in the file, and it is a single attribute
+        write, so calling it back-to-back across cameras starts them all within
+        microseconds. Must be preceded by a successful prepare_recording()."""
+        self.recording = True
+
+    def start_recording(self, output_path: Path) -> bool:
+        """Convenience: prepare + arm in one call (single-camera use).
+        MultiCamRecorder does NOT use this — it calls prepare_recording() on
+        every camera first, then arm_recording() on every camera, so the starts
+        are simultaneous. Kept for backward compatibility / standalone use."""
+        if not self.prepare_recording(output_path):
+            return False
+        self.arm_recording()
+        logger.info(f"Camera {self.camera_id} recording")
+        return True
     
-    def stop_recording(self) -> Tuple[int, List[float]]:
-        """Stop recording and return stats"""
+    def disarm_recording(self) -> None:
+        """Phase 1 of stopping: flip the recording flag off. This is the moment
+        frame capture into the file actually ceases. A single attribute write,
+        so MultiCamRecorder can disarm all cameras within microseconds of each
+        other and fire the stop trigger immediately, BEFORE the slow teardown."""
+        self.recording = False
+
+    def finalize_recording(self) -> Tuple[int, List[float]]:
+        """Phase 2 of stopping: the slow teardown (join writer thread, drain the
+        queue, release the VideoWriter / finalise the .avi). Returns
+        (frame_count, timestamps). Safe to call after disarm_recording(); also
+        safe if disarm was never called (it just sets recording False again)."""
         with self._lock:
             self.recording = False
-            
+
             # Signal writer thread to stop and wait for it to drain the queue
             self._writer_stop.set()
             if self._writer_thread and self._writer_thread.is_alive():
                 self._writer_thread.join(timeout=5.0)
-            
+
             # Drain any remaining frames in the write queue
             while not self._write_queue.empty():
                 try:
@@ -283,11 +321,11 @@ class CameraThread(threading.Thread):
                     break
                 except Exception as e:
                     logger.warning(f"Error draining write queue for camera {self.camera_id}: {e}")
-            
+
             # Save stats before cleanup
             frame_count = self.frame_count
             timestamps = self.timestamps.copy()
-            
+
             # Release video writer SAFELY
             if self.video_writer:
                 try:
@@ -298,10 +336,17 @@ class CameraThread(threading.Thread):
                     logger.warning(f"Error releasing video writer for camera {self.camera_id}: {e}")
                 finally:
                     self.video_writer = None
-            
+
             logger.info(f"Camera {self.camera_id} stopped recording: {frame_count} frames")
-            
+
             return frame_count, timestamps
+
+    def stop_recording(self) -> Tuple[int, List[float]]:
+        """Convenience: disarm + finalize in one call (single-camera use).
+        MultiCamRecorder does NOT use this — it disarms every camera first,
+        fires the stop trigger, then finalizes each. Kept for compatibility."""
+        self.disarm_recording()
+        return self.finalize_recording()
     
     def run(self):
         """Main camera capture loop - capture thread never touches disk I/O"""
@@ -529,25 +574,38 @@ class MultiCamRecorder:
         
         logger.info(f"Starting recording: {trial_name}")
         
-        # Start recording on all cameras
-        success_count = 0
+        # --- Phase 1: PREPARE every camera (slow: opens VideoWriters etc.) ---
+        # Done sequentially, but no frames are captured yet, so the time taken
+        # here does NOT stagger the recordings.
+        prepared = []
         for cam_id, camera in self.cameras.items():
             output_path = self.current_trial_dir / f"camera_{cam_id}.avi"  # .avi for MJPEG
-            if camera.start_recording(output_path):
-                success_count += 1
-        
-        if success_count > 0:
-            self.is_recording = True
-            # Send DataPixx trigger pulse (0.1s) at recording start
-            if self.use_datapixx:
-                logger.info(f"Sending DataPixx trigger {self.trigger} pulse (start)")
-                _dpx_send_trigger(self.trigger)
-                threading.Timer(0.1, _dpx_send_trigger, args=(0,)).start()
-            logger.info(f"Recording started on {success_count} cameras")
-            return True
-        else:
-            logger.error("Failed to start recording on any camera")
+            if camera.prepare_recording(output_path):
+                prepared.append(camera)
+            else:
+                logger.error(f"Camera {cam_id} failed to prepare; it will not record this trial")
+
+        if not prepared:
+            logger.error("Failed to prepare recording on any camera")
             return False
+
+        # --- Phase 2: ARM every prepared camera as close to simultaneously as
+        # possible. arm_recording() is a single attribute write, so this loop
+        # flips all cameras live within microseconds of each other. ---
+        for camera in prepared:
+            camera.arm_recording()
+
+        self.is_recording = True
+
+        # --- Trigger fires IMMEDIATELY after all cameras are live, so the OPM
+        # start trigger marks t=0 for the (now simultaneous) recordings. ---
+        if self.use_datapixx:
+            logger.info(f"Sending DataPixx trigger {self.trigger} pulse (start)")
+            _dpx_send_trigger(self.trigger)
+            threading.Timer(0.1, _dpx_send_trigger, args=(0,)).start()
+
+        logger.info(f"Recording started on {len(prepared)} cameras")
+        return True
     
     def stop_recording(self) -> Dict[int, Tuple[int, List[float]]]:
         """
@@ -561,32 +619,43 @@ class MultiCamRecorder:
             return {}
         
         logger.info("Stopping recording...")
-        
+
+        # --- Phase 1: DISARM every camera near-simultaneously. This is the
+        # moment capture into the files actually stops. Single attribute writes,
+        # so all cameras cease within microseconds of each other. ---
+        for cam_id, camera in self.cameras.items():
+            camera.disarm_recording()
+
+        self.is_recording = False
+
+        # --- Trigger fires IMMEDIATELY, right after capture stops, BEFORE the
+        # slow teardown — so the OPM stop edge marks when recording truly ended,
+        # not when the files finished closing. ---
+        if self.use_datapixx:
+            logger.info(f"Sending DataPixx trigger {self.trigger} pulse (stop)")
+            _dpx_send_trigger(self.trigger)
+            threading.Timer(0.1, _dpx_send_trigger, args=(0,)).start()
+
+        # --- Phase 2: FINALIZE every camera (slow: join writer thread, drain
+        # queue, release/finalise the .avi). Happens AFTER the trigger, so its
+        # duration no longer inflates the trigger-to-trigger interval. ---
         results = {}
         for cam_id, camera in self.cameras.items():
             try:
-                frame_count, timestamps = camera.stop_recording()
+                frame_count, timestamps = camera.finalize_recording()
                 results[cam_id] = (frame_count, timestamps)
             except Exception as e:
-                logger.error(f"Error stopping recording for camera {cam_id}: {e}")
+                logger.error(f"Error finalizing recording for camera {cam_id}: {e}")
                 results[cam_id] = (0, [])
-        
+
         # Save metadata
         try:
             self._save_metadata(results)
         except Exception as e:
             logger.error(f"Error saving metadata: {e}")
-        
-        self.is_recording = False
-        
-        # Send DataPixx trigger pulse (0.1s) at recording stop
-        if self.use_datapixx:
-            logger.info(f"Sending DataPixx trigger {self.trigger} pulse (stop)")
-            _dpx_send_trigger(self.trigger)
-            threading.Timer(0.1, _dpx_send_trigger, args=(0,)).start()
-        
+
         logger.info(f"Recording stopped: {self.current_trial_name}")
-        
+
         return results
     
     def _save_metadata(self, recording_stats: Dict[int, Tuple[int, List[float]]]):
