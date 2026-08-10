@@ -42,6 +42,7 @@ def viewer(
     line_width=8,
     initial_view="front",
     dark_mode=False,
+    bg_color=None,
     show_axes=True,
     output_path=None,
     window_title="CamKit3D Pose Viewer",
@@ -80,6 +81,10 @@ def viewer(
         'front', 'right', 'back', 'top', or 'diagonal'.
     dark_mode : bool
         Start dark (True) or light (False).
+    bg_color : str, optional
+        Light-mode background colour as a hex string (e.g. "#ffffff" or
+        "e0f0ff"). Overrides the default light background. Ignored in dark
+        mode. If None, uses the default light background.
     show_axes : bool
         Show labelled XYZ axes on startup.
     output_path : str or Path, optional
@@ -148,6 +153,15 @@ def viewer(
     }
     iv = views.get(initial_view, views["front"])
 
+    # Light-mode background colour override
+    if bg_color is None:
+        light_bg_js = "0xf2f2f5"
+    else:
+        hexstr = str(bg_color).lstrip("#").strip()
+        if len(hexstr) != 6 or any(c not in "0123456789abcdefABCDEF" for c in hexstr):
+            raise ValueError(f"bg_color must be a 6-digit hex string, got {bg_color!r}")
+        light_bg_js = "0x" + hexstr
+
     # Build HTML
     replacements = {
         "__TITLE__":      window_title,
@@ -165,6 +179,7 @@ def viewer(
         "__INIT_PHI__":   str(iv["p"]),
         "__INIT_DIST__":  str(iv["d"]),
         "__DARK_MODE__":  "true" if dark_mode else "false",
+        "__LIGHT_BG__":   light_bg_js,
         "__SHOW_AXES__":  "true" if show_axes else "false",
     }
 
@@ -483,11 +498,12 @@ const S = 1.0 / EXT;
 
 // ── RENDERER ────────────────────────────────────────────────────────
 const canvas = document.getElementById('c');
-const R = new THREE.WebGLRenderer({ canvas, antialias:true, preserveDrawingBuffer:true });
+const R = new THREE.WebGLRenderer({ canvas, antialias:true, preserveDrawingBuffer:true, alpha:true });
 R.setPixelRatio(Math.min(devicePixelRatio, 2));
 
 let isDark = __DARK_MODE__;
-function sceneColor() { return isDark ? 0x0c0c10 : 0xf2f2f5; }
+const LIGHT_BG = __LIGHT_BG__;
+function sceneColor() { return isDark ? 0x0c0c10 : LIGHT_BG; }
 function kpColor()    { return isDark ? 0xe0e0e6 : 0x2C3E50; }
 R.setClearColor(sceneColor(), 1);
 
@@ -775,6 +791,9 @@ axBtn.onclick = () => {
 
 // Screenshot
 document.getElementById('ssBtn').onclick = () => {
+  // Render with a fully transparent background so the saved PNG has no
+  // scene backdrop (only keypoints/bones are plotted).
+  R.setClearColor(0x000000, 0);
   R.render(scene, cam);
   canvas.toBlob(blob => {
     const a = document.createElement('a');
@@ -782,6 +801,9 @@ document.getElementById('ssBtn').onclick = () => {
     a.download = 'pose_frame_' + String(cf).padStart(5,'0') + '.png';
     a.click();
     URL.revokeObjectURL(a.href);
+    // Restore the on-screen background.
+    R.setClearColor(sceneColor(), 1);
+    R.render(scene, cam);
   });
 };
 
