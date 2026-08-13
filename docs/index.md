@@ -8,22 +8,22 @@
 
 **Multi-camera 3D pose estimation pipeline for naturalistic behavioural and neuroscience applications.**
 
-CamKit3D turns a set of USB webcams into a markerless motion-capture system. It handles the full pipeline: recording, temporal synchronisation, 2D pose estimation, triangulation, analysis and visualisation.
+CamKit3D turns a set of USB webcams into a markerless motion-capture system. It handles: recording, temporal synchronisation, 2D pose estimation, triangulation, analysis and visualisation.
 
-The code can be used as a stand-alone package or integrated alongside wearable brain imaging analyses.
+The code can be used as a stand-alone package or integrated alongside wearable brain imaging.
 
 ---
 
-## Quick links
+## Getting Started
 
-- New here? Start with [Installation](installation.md), then the [Pipeline Overview](pipeline/index.md).
+- Start with [Installation](installation.md).
+- A background on [Hardware](hardware.md)
+- 2D-to-3D [Calibration](tutorials/calibration.md).
 - Want to run the whole thing end-to-end? See the [End-to-end Walkthrough](tutorials/end-to-end.md).
-- Processing many videos? See [Batch Processing](batch-processing.md).
-- Setting up cameras? See [Camera Calibration](tutorials/calibration.md).
 
 ## What CamKit3D does
 
-The pipeline is organised as five sequential stages, but you can also use the scripts independtly if your data is organised correctly.
+The pipeline is organised as five sequential stages, but you can also use the scripts independently if your data is organised correctly.
 
 | Stage | Module | Purpose |
 |---|---|---|
