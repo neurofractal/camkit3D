@@ -46,6 +46,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Hardware: hardware.md
   - Skeletons: skeletons.md
   - 3D Calibration Guide: calibration.md
   - Pipeline:
@@ -61,5 +62,4 @@ nav:
       - End-to-end Walkthrough: tutorials/end-to-end.md
   - Other:
       - Batch Processing: batch-processing.md
-      - Hardware: hardware.md
       - Validation: validation.md
