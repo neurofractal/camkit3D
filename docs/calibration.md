@@ -21,7 +21,7 @@ For detailed instructions see: [https://docs.freemocap.org/documentation/multi-c
     - Record at least 90s of data
     - Move the ChArUco board slowly
     - Move the board forwards and back, tilt in all axes
-    - See here for details: https://www.youtube.com/watch?v=GxKmyKdnTy0&t=1618s
+    - See here for more details: [https://www.youtube.com/watch?v=GxKmyKdnTy0&t=1618s](https://www.youtube.com/watch?v=GxKmyKdnTy0&t=1618s)
 
 ### TOML File
 
