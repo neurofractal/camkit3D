@@ -26,7 +26,7 @@ For whole-body 3D motion capture, cameras should be positioned so that the parti
 
     - Multiple cameras require overlapping views of the participant to provide complementary observations of body landmarks. Arranging the webcams in a circular array is often the best way to achieve this.
 
-    - A good [YouTube video on camera placement (and markerless mocap in general)](https://www.youtube.com/watch?v=GxKmyKdnTy0&t=1618s) can be found here.
+    - A good [YouTube video on camera placement (and markerless mocap in general)](https://youtu.be/GxKmyKdnTy0?si=CoV965Oi7OyM5Oar&t=788) can be found here.
 
     - 2D pose estimation, particularly with MediaPipe, can run into issues when keypoints go in and out of frame, especially the face. Try to ensure your participant's movements do not cause keypoints to leave the camera frame.
 
