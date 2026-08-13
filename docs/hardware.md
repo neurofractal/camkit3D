@@ -8,20 +8,21 @@
 
 * **Recommended webcam:** I have been using the **EMEET C960 1080P Webcam with Microphone**, which provides a **90° field of view** and supports 1080p video. [EMEET C960 1080P Webcam on Amazon UK](https://www.amazon.co.uk/dp/B07M6Y7355?th=1&utm_source=chatgpt.com)
 
-![webcam](images/webcam.png)
-* EMEET C960 1080P *
+<img src="images/webcam.png" alt="EMEET C960 webcam" style="height: 400px; width: auto;">
 
-* **Camera placement and field of view:** For whole-body 3D motion capture, cameras should be positioned so that the participant remains fully within the field of view throughout the recording. A wider field of view can be advantageous for capturing large movements, but cameras should still be positioned close enough to provide sufficient image resolution for reliable pose estimation.
+*EMEET C960 1080P*
 
-### Tips:
+* **Camera placement and field of view:** For whole-body 3D motion capture, cameras should be positioned so that the participant remains fully within the field of view throughout the recording. A wider field of view can be advantageous for capturing large movements, but cameras should still be positioned close enough to provide sufficient image resolution for reliable pose estimation.*
 
-- Multiple cameras require overlapping views of the participant to provide complementary observations of body landmarks. This means arranging the webcams in a circular array is often the best way to go.
+!!! tip "Tips"
 
-- A good Youtube video on camera placement (and markerless mocap in general) can be found here: https://www.youtube.com/watch?v=GxKmyKdnTy0&t=1618s
+    - Multiple cameras require overlapping views of the participant to provide complementary observations of body landmarks. This means arranging the webcams in a circular array is often the best way to go.
 
-- 2D pose estimation (in particular with Mediapipe) runs into issues when keypoints go in/out of frame, especially the face. Try to ensure your participant movement doesn't 
+    - A good [YouTube video on camera placement (and markerless mocap in general)](https://www.youtube.com/watch?v=GxKmyKdnTy0&t=1618s) can be found here.
 
-- When combining with OPM-MEG, smaller shielded rooms (less than 2m^3) are an issue when trying to capturing the whole body. In even smaller tooms capturing the face/torso together simultaneously is also an issue.
+    - 2D pose estimation (in particular with MediaPipe) runs into issues when keypoints go in/out of frame, especially the face. Try to ensure your participant's movement doesn't cause keypoints to leave the camera frame.
+
+    - When combining with OPM-MEG, smaller shielded rooms (less than 2 m³) are an issue when trying to capture the whole body. In even smaller rooms, capturing the face/torso together simultaneously is also an issue.
 
 * **Simultaneous multi-camera recording:** When recording from multiple USB cameras simultaneously, the main hardware bottleneck is often **USB bandwidth rather than CPU/GPU processing**. Each camera continuously transfers video data to the computer, and multiple cameras connected through the same USB hub can compete for the hub's available bandwidth. This can result in dropped frames, reduced frame rates, camera failures, or inconsistent recording if the available bandwidth is exceeded.
 
@@ -30,5 +31,3 @@
 * **Data rate and compression:** The effective USB load depends on the camera's resolution, frame rate, pixel format, and whether the webcam performs hardware video compression. Uncompressed formats such as raw RGB can require substantially more bandwidth than compressed formats such as MJPEG. Reducing resolution or frame rate can substantially reduce USB bandwidth requirements when recording with multiple cameras.
 
 * **Practical recommendation:** For a multi-camera setup, start with **1280 × 720 at 30 FPS** and test all cameras simultaneously before data collection. Check that every camera maintains the intended frame rate without dropped frames and that the participant remains fully visible from all viewpoints. If bandwidth becomes a limitation, reduce the camera resolution, frame rate, or distribute cameras across additional USB controllers.
-
-
