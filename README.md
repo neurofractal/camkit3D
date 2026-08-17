@@ -16,7 +16,7 @@ The package can be used stand-alone, or run alongside wearable brain imaging so 
   <img src="images/example_RS.gif" width="800">
 </p>
 
-The animation above shows a reconstructed 3D skeleton produced by CamKit3D from a multi-camera recording: 2D keypoints detected in each camera view are triangulated into 3D and aligned into a standard anatomical frame for viewing.
+*The animation above shows a reconstructed 3D skeleton produced by CamKit3D from a multi-camera recording: 2D keypoints detected in each camera view are triangulated into 3D and aligned into a standard anatomical frame for viewing.*
 
 ## The pipeline
 
