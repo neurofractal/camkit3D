@@ -1,73 +1,506 @@
-# End-to-end walkthrough
+<div align="center">
 
-This tutorial runs a single trial through all five stages. It stitches together the per-stage snippets from the [Pipeline](../pipeline/index.md) section into one continuous workflow.
+# camkit3D — End-to-End Pipeline
 
-!!! note "Prerequisites"
-    You'll need a [calibration file](calibration.md) before Stage 4.
+### *From raw webcam footage to a 3D motion-capture reconstruction, in eight steps*
 
-## 1. Record
+`Record` → `2D Pose` → `3D Triangulation` → `Align` → `Interpolate` → `View` → `Animate` → `Combine`
 
-```python
-from camkit3d import createRecorder
-import time
+---
 
-with createRecorder(camera_ids=[0, 1, 2], fps=30) as rec:
-    rec.connect_cameras()
-    rec.start_recording("trial_001")
-    time.sleep(60)
-    rec.stop_recording()
+![Pipeline banner — insert a hero image of the combined camera grid + 3D skeleton here](./images/placeholder_banner.png)
+
+> *Image placeholder: a wide hero shot — the multi-camera grid beside the reconstructed 3D skeleton.*
+
+</div>
+
+---
+
+## Overview
+
+This guide walks through the **complete camkit3D pipeline** end to end: recording synchronised multi-camera video, estimating 2D pose per view, triangulating to 3D, cleaning and interpolating the result, and rendering a combined video.
+
+Each section is self-contained — a short explainer, the code, and a space to drop in a figure from your own run.
+
+| Stage | What happens | Output |
+|:-----:|:-------------|:-------|
+| **0** | Config & imports | Session parameters set |
+| **1** | Record & synchronise | Synced multi-camera video |
+| **2** | 2D pose estimation | Per-camera 2D keypoints |
+| **3** | 3D triangulation | 3D point cloud over time |
+| **4** | Align to body frame | Upright, person-centred pose |
+| **5** | Interpolate NaNs | Gap-filled trajectories |
+| **6** | Interactive viewer | Visual QC, pre/post fill |
+| **7** | Render animation | Front-view MP4 |
+| **8** | Combine videos | Cameras + 3D in one file |
+
+---
+
+# Initial Setup
+
+> **Do this once**, before your first recording session.
+
+### Buy webcams
+
+- Choose a **wide field of view** — essential for smaller rooms.
+
+### Connect them to your computer
+
+- Plug them in, but **spread them across USB controllers**. Piling every camera onto one controller causes lots of dropped frames.
+
+### Test the connection in camkit3D
+
+- See **Section 0** below.
+- Ask: *do they all connect? Do any drop frames?*
+
+### Mount on steady tripods
+
+- Point the cameras at your participant **from multiple angles and heights**.
+- Avoid anything too perpendicular or at very acute angles — those views triangulate poorly.
+
+### Download & print a Charuco board
+
+![Charuco board 5×3](https://github.com/neurofractal/camkit3D/blob/main/docs/images/charuco_board_5x3.png)
+
+> *Image placeholder: a photo of your printed Charuco board on its mount.*
+
+- **Measure the size of one black square** — you'll need this for calibration.
+
+### Perform a calibration
+
+Full guide: [camkit3D calibration docs](https://github.com/neurofractal/camkit3D/blob/main/docs/calibration.md)
+
+- Wave the Charuco board around **slowly**, rotating through angles so **every camera** gets full coverage.
+- Don't get too close to any single camera — focus on the volume where your participant will actually be.
+
+> **Handy terminal code** — record for 90 s, then immediately synchronise the frames:
+
+```bash
+cd path_to_camkit3d
+python record_and_sync.py 90 --cameras 0 1 2 --countdown 10 --width 1024 --height 576 \
+--output-dir /Users/robertseymour/Documents/recordings
 ```
 
-## 2. Synchronise
+- Then run it through **FreeMoCap**:
+  `Load recording → Process Data → Calibrate from Active Recording → Charuco Board 5×3 → Run calibration`
+
+---
+
+# 0 · Config & Imports
+
+> Set your session parameters once here — every later stage reads from these. Flip `RECORD_NEW` to `False` to re-analyse an existing session instead of recording afresh.
 
 ```python
-from camkit3d import vidSync
+import time, json, math
+from datetime import datetime
+from pathlib import Path
 
-results, figures = vidSync("recordings/trial_001", target_fps=30.0)
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+from scipy.spatial.distance import euclidean
+
+%matplotlib inline
+
+# ── Settings ──────────────────────────────────────────────────────────
+DATA_DIR    = Path('/Users/robertseymour/Documents/recordings')
+CAMERA_IDS  = [0, 1, 2]
+FPS         = 30
+WIDTH, HEIGHT = 1024, 576
+RECORD_SECONDS = 30
+
+RECORD_NEW = True   # False → reuse an existing SESSION_DIR below
+
+# If RECORD_NEW is False, set this to an existing session folder:
+SESSION_DIR = Path('/Users/robertseymour/Documents/recordings/2026-08-17_13-59-01')
+
+print('Config ready')
 ```
 
-## 3. 2D pose estimation
+---
+
+# 1 · Record & Synchronise
+
+> Records **~30 s** from all cameras with a countdown, then resamples every camera onto one ideal FPS timeline so the frames line up across views.
+
+### Connect to the cameras
 
 ```python
-from camkit3d import PoseProcessor
+from camkit3d.recorder import MultiCamRecorder
+
+recorder = MultiCamRecorder(
+    camera_ids=[0,1,2],  # Your cameras
+    fps=30,
+    base_output_dir = DATA_DIR,
+    width = 1024,
+    height= 576
+)
+
+# Connect to cameras (once)
+recorder.connect_cameras()
+```
+
+### Preview before you commit
+
+> Use the live preview to check framing, lighting, and that everyone is fully in shot.
+
+```python
+recorder.preview_cameras(duration=300.0, target_fps=30)
+```
+
+![Live camera preview](./images/placeholder_preview.png)
+
+> *Image placeholder: the multi-camera live preview window.*
+
+### Record with a countdown
+
+```python
+from camkit3d.sync import synchronize_videos_to_ideal_fps
+
+if RECORD_NEW:
+    # 5s countdown before recording
+    for s in range(6, 0, -1):
+        print(f'\rRecording in {s}...', end='', flush=True)
+        time.sleep(1)
+    print('\rRecording now!      ')
+
+    timestamp   = datetime.now().strftime('%Y%m%d_%H_%M_%S')
+    SESSION_DIR = DATA_DIR / f'recording_{timestamp}'
+    recorder.start_recording(str(SESSION_DIR))
+    time.sleep(RECORD_SECONDS)
+    recorder.stop_recording()
+    recorder.disconnect_cameras()
+```
+
+### Synchronise to an ideal FPS
+
+```python
+if RECORD_NEW:
+    # Synchronise all cameras to an ideal FPS
+    synchronize_videos_to_ideal_fps(
+        trial_folder=str(SESSION_DIR),
+        target_fps=float(FPS),
+        max_time_diff_ms=50.0,
+    )
+
+assert SESSION_DIR is not None, 'Set SESSION_DIR or use RECORD_NEW=True'
+SESSION_DIR = Path(SESSION_DIR)
+print('Session:', SESSION_DIR)
+```
+
+---
+
+# 2 · 2D Pose Estimation (MediaPipe)
+
+> Runs **MediaPipe** on each synchronised video, then smooths the keypoints and cleans stray face points near the frame edges.
+
+```python
+from camkit3d.pose2d import (
+    PoseProcessor,
+    smooth_keypoints_directory,
+    clean_face_points_directory,
+)
+
+INPUT_VIDEO_DIR = SESSION_DIR / 'synchronized_videos'
+MP_OUTPUT_DIR   = SESSION_DIR / 'mediapipe_output'
+MP_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 processor = PoseProcessor(
-    input_dir="recordings/trial_001/synchronized_videos",
-    output_dir="recordings/trial_001/mediapipe_output",
+    input_dir=INPUT_VIDEO_DIR,
+    output_dir=MP_OUTPUT_DIR,
+    min_detection_confidence=0.6,
+    min_tracking_confidence=0.6,
     model_complexity=2,
+    smooth_landmarks=True,
 )
-metrics = processor.process_all_videos(save_labeled_videos=True)
+
+# Produces labelled videos + 2D keypoints per camera
+metrics_all = processor.process_all_videos(save_labeled_videos=True)
+for cam, m in metrics_all.items():
+    print(f'{cam}: detection {m.detection_rate:.1%}, mean conf {m.avg_confidence:.3f}')
+
+# ── Clean the 2D keypoints in place ──
+data_2d_dir = MP_OUTPUT_DIR / 'data_2d'
+smooth_keypoints_directory(input_dir=data_2d_dir, cutoff_freq=4.0, sampling_freq=FPS)
+clean_face_points_directory(input_dir=data_2d_dir, frame_width=1920, frame_height=1080)
+print('2D keypoints cleaned')
 ```
 
-## 4. Triangulate to 3D
+![2D pose overlay](./images/placeholder_pose2d.png)
+
+> *Image placeholder: a labelled frame showing the MediaPipe skeleton drawn over one camera view.*
+
+---
+
+# 3 · 3D Triangulation
+
+> Place the relevant ```camera_calibration.toml``` in the ```SESSION_DIR```.
+
+> **DLT triangulation** across cameras using the FreeMoCap calibration. A confidence floor drops genuinely bad detections, soft weighting handles the rest, and a reprojection-error filter removes remaining outliers.
 
 ```python
-from camkit3d import Pose3DProjector
+from camkit3d.pose3d import Pose3DProjector
+
+CALIBRATION_FILE = SESSION_DIR / 'camera_calibration.toml'
+OUTPUT_3D_DIR    = SESSION_DIR / 'data_3d'
+OUTPUT_3D_DIR.mkdir(parents=True, exist_ok=True)
 
 projector = Pose3DProjector(
-    calibration_path="camera_calibration.toml",
-    keypoints_dir="recordings/trial_001/mediapipe_output/data_2d",
+    calibration_path=CALIBRATION_FILE,
+    keypoints_dir=MP_OUTPUT_DIR / 'data_2d',
+    skeleton='mediapipe_pose',
     min_cameras_for_triangulation=2,
-    confidence_threshold=0.3,
+    soft_conf_floor=0.5,  # Drop anything below 0.5
+    reprojection_error_threshold=20.0,
+    use_iterative_rejection=True,
 )
+
 points_3d, metrics = projector.triangulate_all_frames()
-projector.save_3d_data(points_3d, "recordings/trial_001/data_3d/pose_3d")
+
+# NaN out keypoints with high mean reprojection error
+points_3d = Pose3DProjector.nan_filter_by_reprojection_error(
+    points_3d, metrics, per_keypoint=False, error_threshold=15.0,
+)
+
+projector.save_3d_data(points_3d, output_path=str(OUTPUT_3D_DIR / 'pose_3d'),
+                       metadata={'min_cameras': 2, 'soft_conf_floor': 0.5})
+
+print('3D points:', points_3d.shape, '| mean reproj error:',
+      f'{metrics.mean_reprojection_error:.2f}px')
 ```
 
-## 5. Analyse and animate
+> **Tip:** `soft_conf_floor` only bites under soft weighting — views below the floor are dropped outright, and the survivors keep their continuous confidence weights.
+
+---
+
+# 4 · Align to a Body-Centred Frame
+
+> Re-expresses the pose in **upright, person-facing, floor-referenced** coordinates, so downstream measures don't depend on where the cameras happened to sit.
 
 ```python
-import numpy as np
-from camkit3d import (
-    detect_person_orientation,
-    align_pose_to_standard_frame,
-    animate_3d_pose_auto_orient,
-)
+from camkit3d.analysis import align_pose_to_standard_frame, interpolate_nans
+from camkit3d.viewer import viewer
 
-points_3d = np.load("recordings/trial_001/data_3d/pose_3d.npy")
-orientation = detect_person_orientation(points_3d)
-aligned = align_pose_to_standard_frame(points_3d, orientation)
-animate_3d_pose_auto_orient(aligned, output_path="skeleton.mp4", fps=30)
+points_3d_aligned, R, orient = align_pose_to_standard_frame(points_3d)
+print('Aligned:', points_3d_aligned.shape)
 ```
 
-That's a full trial from raw webcam video to an animated 3D skeleton.
+---
+
+# 5 · Interpolate NaNs
+
+> **PCHIP** fill for bounded gaps — shape-preserving, with no overshoot. The plot below sanity-checks the fill against a real distance measure.
+
+```python
+points_3d_filled, report = interpolate_nans(
+    points_3d_aligned, method='pchip', max_gap_seconds=1.0, fps=FPS,
+)
+
+# Compare a representative measure before vs after interpolation
+LEFT_SHOULDER, LEFT_WRIST = 11, 15
+
+def wrist_shoulder_distance(points):
+    d = np.full(points.shape[0], np.nan)
+    for f in range(points.shape[0]):
+        s, w = points[f, LEFT_SHOULDER], points[f, LEFT_WRIST]
+        if not np.isnan(s).any() and not np.isnan(w).any():
+            d[f] = euclidean(s, w)
+    return d
+
+dist_original = wrist_shoulder_distance(points_3d_aligned)
+dist_filled   = wrist_shoulder_distance(points_3d_filled)
+
+plt.figure(figsize=(12, 4))
+plt.plot(dist_filled,   color='red',   lw=1.5, label='Filled')
+plt.plot(dist_original, color='black', lw=1.5, label='Original')
+plt.xlabel('Frame'); plt.ylabel('Distance (mm)')
+plt.title('Left shoulder → left wrist (before/after interpolation)')
+plt.grid(alpha=0.3); plt.legend(); plt.show()
+```
+
+![Interpolation comparison plot](./images/placeholder_interpolation.png)
+
+> *Image placeholder: the shoulder→wrist distance plot, black (original) vs red (filled).*
+
+---
+
+# 6 · Interactive Viewer — Before & After Interpolation
+
+> Opens the camkit3D viewer for a visual QC pass. Inspect the **pre-interpolation** data (gaps visible) and then the **filled** data.
+
+> **Note:** requires an interactive backend. Switch to `%matplotlib qt` first — the inline backend won't show the live viewer.
+
+```python
+%matplotlib qt
+# Before interpolation (gaps visible)
+viewer(points_3d_aligned, fps=FPS)
+```
+
+```python
+# After interpolation (gaps filled)
+viewer(points_3d_filled, fps=FPS)
+```
+
+<table>
+<tr>
+<td align="center"><b>Before</b><br><img src="./images/placeholder_viewer_before.png" alt="Viewer before interpolation" width="360"/></td>
+<td align="center"><b>After</b><br><img src="./images/placeholder_viewer_after.png" alt="Viewer after interpolation" width="360"/></td>
+</tr>
+</table>
+
+> *Image placeholders: two viewer screenshots side by side — gappy skeleton vs filled skeleton.*
+
+---
+
+# 7 · Render the 3D Animation
+
+> A front-view, real-time animation of the filled pose, saved straight to **MP4**.
+
+```python
+from camkit3d.analysis import animate_3d_pose
+
+animate_3d_pose(
+    points_3d_filled,
+    show_floor=False,
+    view_mode='custom',
+    frames_to_animate=points_3d_filled.shape[0],
+    rotation_speed=0,
+    output_path=SESSION_DIR / 'animations' / 'pose_front.mp4',
+    elevation=20, azimuth_start=150,
+    keypoint_size=70, line_width=4,
+    show_axes=True, fps=FPS, quality='high',
+)
+print('Animation saved')
+```
+
+![3D animation still](./images/placeholder_animation.png)
+
+> *Image placeholder: a still frame (or GIF) of the rendered 3D skeleton animation.*
+
+---
+
+# 8 · Combine Camera Videos with the 3D Animation
+
+> Lays out the **labelled camera grid on the left** and the **3D front view on the right**, written to a single MP4 — handy for talks, figures, and quick QC.
+
+```python
+def _open(path):
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise RuntimeError(f'Could not open video: {path}')
+    return cap
+
+def _info(cap):
+    return (cap.get(cv2.CAP_PROP_FPS),
+            int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
+            int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+
+def _grid_dims(n):
+    cols = math.ceil(math.sqrt(n))
+    return cols, math.ceil(n / cols)
+
+def _build_grid(cam_frames, n_cols, n_rows, grid_w, grid_h):
+    cell_w, cell_h = grid_w // n_cols, grid_h // n_rows
+    canvas = np.zeros((grid_h, grid_w, 3), dtype=np.uint8)
+    n = len(cam_frames)
+    for idx in range(n_rows * n_cols):
+        row, col = idx // n_cols, idx % n_cols
+        last_row_count = n - (n_rows - 1) * n_cols
+        col_offset = ((n_cols - last_row_count) * cell_w // 2
+                      if row == n_rows - 1 and last_row_count < n_cols else 0)
+        x0, y0 = col * cell_w + col_offset, row * cell_h
+        if idx >= n or cam_frames[idx] is None:
+            continue
+        frame = cam_frames[idx]
+        fh, fw = frame.shape[:2]
+        scale = min(cell_w / fw, cell_h / fh)
+        nw, nh = max(1, round(fw * scale)), max(1, round(fh * scale))
+        resized = cv2.resize(frame, (nw, nh), interpolation=cv2.INTER_AREA)
+        x1, y1 = x0 + (cell_w - nw) // 2, y0 + (cell_h - nh) // 2
+        y2, x2 = min(y1 + nh, grid_h), min(x1 + nw, grid_w)
+        canvas[y1:y2, x1:x2] = resized[:y2 - y1, :x2 - x1]
+    return canvas
+
+def combine_cameras_and_front_view(
+    session_dir,
+    synced_folder_name='mediapipe_output/labeled_videos',
+    front_view_rel='animations/pose_front.mp4',
+    out_name='animations/video_pose.mp4',
+    camera_glob='camera_*_synchronized_labeled.mp4',
+    grid_target_h=1080,
+):
+    session_dir = Path(session_dir)
+    synced_dir  = session_dir / synced_folder_name
+    front_path  = session_dir / front_view_rel
+    out_path    = session_dir / out_name
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cam_paths = sorted(synced_dir.glob(camera_glob))
+    if not cam_paths:
+        raise FileNotFoundError(f'No camera videos in {synced_dir}')
+    if not front_path.exists():
+        raise FileNotFoundError(f'Missing front view: {front_path}')
+
+    cap_front = _open(front_path)
+    caps = [_open(p) for p in cam_paths]
+    fps_front, n_front, front_w, front_h = _info(cap_front)
+    infos = [_info(c) for c in caps]
+    out_fps = fps_front if fps_front and fps_front > 0 else 30.0
+
+    min_frames = min(n_front, *[i[1] for i in infos])
+    n_cols, n_rows = _grid_dims(len(caps))
+
+    src_ws = sorted(i[2] for i in infos); src_hs = sorted(i[3] for i in infos)
+    median_w, median_h = src_ws[len(src_ws)//2], src_hs[len(src_hs)//2]
+    cell_h = max(1, grid_target_h // n_rows)
+    cell_w = max(1, round(median_w * (cell_h / median_h)))
+    grid_w, grid_h = cell_w * n_cols, cell_h * n_rows
+    right_h = grid_h
+    right_w = max(1, round(front_w * (right_h / front_h)))
+    out_w, out_h = grid_w + right_w, grid_h
+
+    writer = cv2.VideoWriter(str(out_path),
+                             cv2.VideoWriter_fourcc(*'mp4v'),
+                             out_fps, (out_w, out_h))
+    for fi in range(min_frames):
+        if fi % 100 == 0:
+            print(f'  frame {fi}/{min_frames}')
+        cam_frames = []
+        for cap in caps:
+            ok, f = cap.read()
+            cam_frames.append(f if ok and f is not None else None)
+        grid = _build_grid(cam_frames, n_cols, n_rows, grid_w, grid_h)
+        ok, f_front = cap_front.read()
+        f_front = (cv2.resize(f_front, (right_w, right_h), interpolation=cv2.INTER_AREA)
+                   if ok and f_front is not None
+                   else np.zeros((right_h, right_w, 3), np.uint8))
+        writer.write(np.hstack([grid, f_front]))
+
+    writer.release(); cap_front.release()
+    for c in caps: c.release()
+    print('Saved:', out_path)
+    return str(out_path)
+
+
+result = combine_cameras_and_front_view(SESSION_DIR)
+print('Combined video:', result)
+```
+
+![Combined output](./images/placeholder_combined.png)
+
+> *Image placeholder: a frame from the final combined MP4 — camera grid left, 3D skeleton right.*
+
+---
+
+<div align="center">
+
+## That's the whole pipeline
+
+**Record → Reconstruct → Render**, all in one pass.
+
+---
+
+*More docs & the full library:* [**github.com/neurofractal/camkit3D**](https://github.com/neurofractal/camkit3D)
+
+</div>
