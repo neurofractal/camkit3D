@@ -1,8 +1,25 @@
-"""
-Multi-Camera Synchronized Video Recorder - ROBUST VERSION
-No FFmpeg dependency - pure OpenCV with enhanced error handling
-Optional DataPixx digital trigger support for synchronisation with
-external hardware (e.g. EEG, eye-tracker, physiology).
+"""Synchronized multi-camera video recorder for CamKit3D.
+
+Captures frame-locked video from multiple USB cameras for markerless 3D
+motion capture, built to record cleanly on standard hardware and to align
+precisely with neural data.
+
+Key features:
+
+- Two-phase start/stop. Every camera is prepared (file and encoder opened)
+  first, then armed, so all streams begin and end within microseconds of 
+  each other rather than staggered by slow file setup.
+- Hardware synchronisation. Optional DataPixx digital triggers fire the
+  instant capture starts and stops, giving a shared t=0 with external
+  recordings such as OPM-MEG, EEG, eye-trackers, or physiology.
+- Drop-free capture. A threaded write queue decouples frame grabbing from
+  disk I/O, preventing periodic OS buffer flushes from stalling capture and
+  dropping frames.
+- Pure OpenCV with no FFmpeg dependency, and per-camera fallback logic for
+  robust connection across backends.
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 import cv2
@@ -280,7 +297,7 @@ class CameraThread(threading.Thread):
 
     def start_recording(self, output_path: Path) -> bool:
         """Convenience: prepare + arm in one call (single-camera use).
-        MultiCamRecorder does NOT use this — it calls prepare_recording() on
+        MultiCamRecorder does NOT use this; it calls prepare_recording() on
         every camera first, then arm_recording() on every camera, so the starts
         are simultaneous. Kept for backward compatibility / standalone use."""
         if not self.prepare_recording(output_path):
@@ -343,7 +360,7 @@ class CameraThread(threading.Thread):
 
     def stop_recording(self) -> Tuple[int, List[float]]:
         """Convenience: disarm + finalize in one call (single-camera use).
-        MultiCamRecorder does NOT use this — it disarms every camera first,
+        MultiCamRecorder does NOT use this; it disarms every camera first,
         fires the stop trigger, then finalizes each. Kept for compatibility."""
         self.disarm_recording()
         return self.finalize_recording()
@@ -629,7 +646,7 @@ class MultiCamRecorder:
         self.is_recording = False
 
         # --- Trigger fires IMMEDIATELY, right after capture stops, BEFORE the
-        # slow teardown — so the OPM stop edge marks when recording truly ended,
+        # slow teardown, so the OPM stop edge marks when recording truly ended,
         # not when the files finished closing. ---
         if self.use_datapixx:
             logger.info(f"Sending DataPixx trigger {self.trigger} pulse (stop)")
