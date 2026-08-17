@@ -1,7 +1,7 @@
 """GPU-accelerated 3D pose viewer for CamKit3D.
 
 Renders reconstructed 3D pose sequences as an interactive skeleton animation,
-with no matplotlib dependency.
+with no matplotlib dependency. Opens in the browser.
 
 Key features:
 
