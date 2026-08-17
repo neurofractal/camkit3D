@@ -1,6 +1,20 @@
-"""
-sync_qa - Quality assurance for synchronized multi-camera videos
-Includes quality checks, metrics, and visualization tools
+"""Quality assurance for synchronized multi-camera videos in CamKit3D.
+
+After synchronisation, this module verifies that the output videos really are
+aligned and gives you tools to inspect them by eye.
+
+Key features:
+
+- Sync validation. Re-opens every synchronised video and checks that frame
+  counts, durations, frame rates, and resolutions match across cameras,
+  flagging any stream that drifted out of agreement.
+- Side-by-side review. Composites all camera feeds into a single labelled
+  grid video so misalignment is visible at a glance.
+- Offset visualisation. Parses the synchronisation report and plots the
+  residual timing offset of each camera.
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 import cv2

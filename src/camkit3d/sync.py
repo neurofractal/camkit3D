@@ -1,40 +1,40 @@
-"""
-vid_sync  –  Timestamp-based Multi-Camera Video Synchronization & Plotting
-=============================================================================
+"""Timestamp-based multi-camera video synchronization and plotting for CamKit3D.
 
-Overview
---------
-When recording from multiple cameras simultaneously, each camera has its own
-internal clock and its own frame drops / timing jitter.  This means:
-  - Camera 0 might capture frame 100 at t = 3.333 s
-  - Camera 1 might capture frame 100 at t = 3.341 s
-  - Camera 2 might have *dropped* a frame entirely around that time
+When several cameras record at once, each has its own internal clock and its
+own frame drops and timing jitter, so frame 100 on one camera is not the same
+instant as frame 100 on another. Lining up frame numbers therefore does NOT
+give temporally aligned video.
 
-Simply lining up frame numbers across cameras therefore does NOT give you
-temporally synchronised video.
+This module resynchronises the recordings against a common reference clock and
+provides diagnostics to confirm the result.
 
-This module solves that problem in two stages:
+Key features:
 
-  1. **Synchronisation** (`synchronize_videos_to_ideal_fps`)
-     Creates a perfect "ideal" timing grid at the desired output FPS that
-     spans the time window common to every camera.  For each tick of that
-     ideal clock it finds the nearest *actual* frame from each camera (using
-     the real timestamps recorded during capture), then writes those frames
-     out to new video files.  The result is a set of videos that all have
-     exactly the same number of frames and are aligned in time.
+- Ideal-clock resampling. Rather than aligning to a chosen master camera,
+  it builds a perfect timing grid at the target FPS over the window common
+  to all cameras, then picks each camera's nearest real frame by timestamp.
+  Every camera is treated equally and the output tracks the desired FPS as
+  closely as the data allow.
+- Drop and jitter handling. Because matching is by capture time, a dropped
+  frame is covered by reusing the nearest neighbour and a fast-running camera
+  simply skips one, so all outputs end up with identical frame counts.
+- Built-in diagnostics. Timing-error statistics plus per-camera plots of
+  raw vs synchronised timing, dropped-frame counts, and error distributions
+  let you judge sync quality at a glance.
+- Tiled review video. Composites all synchronised feeds into one labelled
+  grid for quick visual confirmation.
 
-  2. **Visualisation** (`plot_sync_results`, `plot_sync_summary_stats`)
-     Generates diagnostic plots so you can inspect timing errors, dropped
-     frames, and how well each camera tracks the ideal clock.
+Quick-start:
 
-Quick-start
------------
     from camkit3d.sync import vid_sync
 
     trial = "./recordings/2026-02-04_12-00-00"
     results, figs = vid_sync(trial, target_fps=30.0)
 
 Dependencies: numpy, opencv-python, matplotlib
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 from pathlib import Path
@@ -106,36 +106,36 @@ def synchronize_videos_to_ideal_fps(
 ) -> Dict:
     """Synchronise every camera to an ideal clock at *target_fps*.
 
-    How it works – step by step
+    How it works - step by step
     ---------------------------
-    1. **Load timestamps** – Each camera must have a corresponding
+    1. **Load timestamps** - Each camera must have a corresponding
        ``camera_<id>_timestamps.npy`` file in *trial_folder* containing a 1-D
        array of POSIX-style seconds (one entry per captured frame).
 
-    2. **Find the common time window** – The overlap region is defined as
+    2. **Find the common time window** - The overlap region is defined as
        ``[max(start times), min(end times)]`` across all cameras.  Only this
        window is included in the output so every camera contributes data for
        every output frame.
 
-    3. **Build an ideal timing grid** – A perfect array of timestamps at
+    3. **Build an ideal timing grid** - A perfect array of timestamps at
        exactly ``1 / target_fps`` spacing is created over the common window.
        This is the "reference clock" that all cameras will be mapped onto.
 
-    4. **Map real frames → ideal ticks** – For each ideal tick and each camera
+    4. **Map real frames → ideal ticks** - For each ideal tick and each camera
        the nearest real frame (by timestamp) is selected.  A single source
        frame may be reused (if the camera dropped a frame) or skipped (if the
        camera ran slightly fast).
 
-    5. **Write synchronised videos** – New MP4 files are written where frame
+    5. **Write synchronised videos** - New MP4 files are written where frame
        *n* of every camera corresponds to the same ideal time point.
 
-    6. **Verify & report** – Output videos are re-opened and their frame
+    6. **Verify & report** - Output videos are re-opened and their frame
        counts are checked.  Timing-error statistics are returned so you can
        judge sync quality.
 
     Why align to an *ideal* clock rather than to cam 0?
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    No single camera is perfect – all have jitter and drops.  Using an ideal
+    No single camera is perfect - all have jitter and drops.  Using an ideal
     grid treats every camera equally and produces output whose timing is as
     close to the desired FPS as possible.
 
@@ -161,7 +161,7 @@ def synchronize_videos_to_ideal_fps(
     results : dict
         Keys include ``'frame_count'``, ``'ideal_times'``, ``'sync_metrics'``,
         ``'frame_mappings'``, ``'timestamps_original'``, ``'output_files'``,
-        and more – everything needed by the plotting functions.
+        and more - everything needed by the plotting functions.
     """
     trial_folder = Path(trial_folder)
     raw_dir = trial_folder / raw_videos_subdir
@@ -450,15 +450,15 @@ def plot_sync_results(
 
     Panels
     ------
-    1. **Original frame times vs ideal** – shows how each camera's raw
+    1. **Original frame times vs ideal** - shows how each camera's raw
        timestamps drift from the perfect clock.
-    2. **Synchronised frame times vs ideal** – same view *after* sync; all
+    2. **Synchronised frame times vs ideal** - same view *after* sync; all
        cameras should now hug the ideal line.
-    3. **Original timing error** – per-frame signed error (ms) before sync.
-    4. **Synchronised timing error** – per-frame signed error after sync.
-    5. **Frame duration scatter** – inter-frame intervals over time; useful
+    3. **Original timing error** - per-frame signed error (ms) before sync.
+    4. **Synchronised timing error** - per-frame signed error after sync.
+    5. **Frame duration scatter** - inter-frame intervals over time; useful
        for spotting jitter and dropped frames.
-    6. **Cumulative dropped frames** – running count of frames each camera
+    6. **Cumulative dropped frames** - running count of frames each camera
        has dropped relative to the expected cadence.
 
     Parameters
@@ -629,8 +629,8 @@ def plot_sync_summary_stats(
 ) -> plt.Figure:
     """Create a 2-panel summary figure with bar chart and box plot of timing errors.
 
-    Panel 1 – **Bar chart**: mean / RMS / max timing error for each camera.
-    Panel 2 – **Box plot**: full distribution of timing errors per camera.
+    Panel 1 - **Bar chart**: mean / RMS / max timing error for each camera.
+    Panel 2 - **Box plot**: full distribution of timing errors per camera.
 
     Parameters
     ----------
@@ -742,7 +742,7 @@ def vid_sync(
     results : dict
         Synchronisation results (metrics, paths, mappings, etc.).
     figs : dict
-        Matplotlib figures – ``'main'`` and ``'summary'``.
+        Matplotlib figures - ``'main'`` and ``'summary'``.
 
     Example
     -------
