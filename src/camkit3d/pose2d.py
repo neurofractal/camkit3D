@@ -1,15 +1,26 @@
-"""
-MediaPipe Pose Processing Module
+"""2D pose estimation from synchronized multi-camera videos for CamKit3D.
 
-This module processes synchronized multi-camera videos using MediaPipe Pose to:
-1. Extract 2D pose keypoints from each frame
-2. Generate labeled videos with skeleton overlay
-3. Save keypoint data in FreeMoCap-compatible format
-4. Provide quality metrics for pose estimation
+Runs MediaPipe Pose on each synchronised camera feed to extract 2D keypoints,
+render skeleton-overlay videos, and save keypoint arrays in a FreeMoCap-
+compatible layout ready for 3D triangulation.
 
-Author: CamKit3D (FreeMoCap-compatible workflow)
-Date: 2026-02-06
+Key features:
 
+- Parallel per-camera inference. Each camera is processed in its own worker
+  process with a MediaPipe Pose instance, giving a roughly 2 to 3x
+  speedup on multi-camera trials while single-camera use pays little overhead.
+- Skeleton-driven topology. Landmark groups (face, hands, shoulders, arms,
+  legs, feet) are resolved from a single skeleton descriptor, so filtering
+  and drawing stay consistent and the module can be pointed at a different
+  skeleton without touching the logic.
+- Task-aware cleaning. Optional Butterworth trajectory smoothing, lower-body
+  removal for upper-body tasks, and edge-aware face-landmark cleaning cut
+  noise before triangulation, each touching only the landmarks it should.
+- Quality metrics. Per-camera detection rate and confidence statistics let
+  you spot weak views before they reach the 3D stage.
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 import cv2
@@ -33,7 +44,7 @@ from camkit3d import skeletons as _skeletons
 import threading
 
 # Module-level default skeleton. Hoisted here (not just on the class) so that
-# comprehensions inside the class body can reference it — class-body scope is
+# comprehensions inside the class body can reference it. Class-body scope is
 # not visible to comprehension/generator scopes, but module scope is.
 _SKELETON = _skeletons.load()  # mediapipe_pose
 
@@ -133,7 +144,7 @@ def _process_single_video_worker(
         )
 
     # ── Pre-allocate arrays (avoids repeated list.append + final np.array copy) ──
-    n_landmarks = 33  # fixed by MediaPipe Pose (BlazePose) — matches mediapipe_pose descriptor
+    n_landmarks = 33  # fixed by MediaPipe Pose (BlazePose); matches mediapipe_pose descriptor
     keypoints_array = np.zeros((total_frames, n_landmarks, 3), dtype=np.float32)
     confidences_list: List[float] = []
     frames_with_detection = 0
@@ -362,7 +373,7 @@ class PoseProcessor:
         self.data_2d_dir = self.output_dir / "data_2d"
         self.data_2d_dir.mkdir(exist_ok=True)
         
-        # Store config for spawning workers (don't create Pose here —
+        # Store config for spawning workers (don't create Pose here;
         # it can't be pickled and each process needs its own instance)
         self._pose_config = dict(
             min_detection_confidence=min_detection_confidence,
@@ -450,7 +461,7 @@ class PoseProcessor:
         save_labeled_videos: bool = True
     ) -> Dict[str, PoseEstimationMetrics]:
         """
-        Process all videos in the input directory — in parallel.
+        Process all videos in the input directory, in parallel.
         
         Each camera is processed in its own subprocess with its own
         MediaPipe Pose instance.  On an M3 MacBook Air with 3 cameras
@@ -504,7 +515,7 @@ class PoseProcessor:
                 f"({n_workers} workers)"
             )
 
-            # Use 'spawn' context — safest on macOS and avoids fork issues
+            # Use 'spawn' context: safest on macOS and avoids fork issues
             # with MediaPipe / OpenCV.
             ctx = _mp.get_context("spawn")
             
@@ -906,7 +917,7 @@ class PoseProcessor:
         Face landmarks tend to be unreliable when the face is close to a frame
         boundary or only partially visible. This detects those frames and either
         down-weights or removes the affected face landmarks. Only face landmarks
-        are ever modified — shoulders, arms and hands keep their original values.
+        are ever modified; shoulders, arms and hands keep their original values.
 
         Args:
             keypoints_2d: Shape (n_frames, n_landmarks, 3), last dim is [x, y, confidence]
