@@ -10,7 +10,7 @@
 
 CamKit3D turns a handful of ordinary USB webcams into a markerless motion-capture system. It covers the full path from raw video to analysed 3D skeleton data: recording, temporal synchronisation, 2D pose estimation, triangulation, and analysis and visualisation. No markers, no bodysuits, and no specialist camera hardware are required.
 
-The package can be used stand-alone, or run alongside wearable brain imaging so that movement and neural activity are captured together.
+The package runs stand-alone as a markerless way to capture 3D movement. However it can also be used in combination with wearable brain imaging (e.g. OPM-MEG) to enable opportunities in naturalistic neuroscience and social interaction.
 
 <p align="center">
   <img src="images/example_RS.gif" width="800">
