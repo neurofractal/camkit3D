@@ -260,6 +260,7 @@ class Pose3DProjector:
         soft_center: float = 0.5,
         soft_sharpness: float = 8.0,
         soft_min_weight: float = 0.02,
+        soft_conf_floor: float = 0.0,
         skeleton=None,
     ):
         self.calibration_path = Path(calibration_path)
@@ -285,6 +286,7 @@ class Pose3DProjector:
         self.soft_center = soft_center
         self.soft_sharpness = soft_sharpness
         self.soft_min_weight = soft_min_weight
+        self.soft_conf_floor = soft_conf_floor
 
         # Resolve the skeleton (landmark count and face/hand/body index groups).
         if skeleton is None:
@@ -428,6 +430,13 @@ class Pose3DProjector:
         weights = 1.0 / (1.0 + np.exp(
             -self.soft_sharpness * (confidences - self.soft_center)
         ))
+
+        # Hard confidence floor: any view below soft_conf_floor is a "really bad"
+        # detection and is dropped outright (weight forced to 0), regardless of
+        # its sigmoid weight. Views at or above the floor keep their soft weight,
+        # so the survivors are still weighted continuously. With floor 0.0 this
+        # is a no-op and behaviour is the original pure-soft weighting.
+        weights = np.where(confidences >= self.soft_conf_floor, weights, 0.0)
 
         # A view contributes if its 2D point is finite and its weight is above
         # the numerical floor. Points with too few contributing views are NaN.
