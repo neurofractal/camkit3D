@@ -1,31 +1,30 @@
-"""Triangulation of multi-view 2D keypoints into 3D via the Direct Linear
-Transform (DLT).
+"""Triangulation of multi-view 2D keypoints into 3D for CamKit3D.
 
-The projector loads per-camera intrinsics/extrinsics from a TOML calibration
-file and per-camera 2D keypoint arrays, then reconstructs 3D coordinates frame
-by frame.
+Reconstructs 3D coordinates from per-camera 2D keypoints using the Direct
+Linear Transform (DLT). The projector loads per-camera intrinsics and
+extrinsics from a TOML calibration file, reads the 2D keypoint arrays, and
+triangulates frame by frame. Output coordinates are in the units of the
+calibration extrinsics (mm).
 
-Two combination schemes are available at the triangulation step:
+Key features:
 
-``soft_weighting=True`` (default)
-    Every camera contributes to every point; each view's DLT equations are
-    scaled by a sigmoid of its 2D confidence. View influence therefore varies
-    continuously with confidence and the contributing set does not change from
-    frame to frame. This avoids the single-frame 3D discontinuities produced by
-    a hard confidence gate, which arise when a view crosses the threshold and is
-    added to or removed between consecutive frames.
+- Soft confidence weighting (default). Every camera contributes to every
+  point, with each view's DLT equations scaled by a sigmoid of its 2D
+  confidence. View influence varies continuously and the contributing set
+  stays fixed across frames, avoiding the single-frame 3D discontinuities a
+  hard confidence gate produces when a view crosses the threshold between
+  consecutive frames. A classical hard gate (equal-weight triangulation of
+  above-threshold views) is available via soft_weighting=False.
+- Outlier-robust reprojection handling. An optional reprojection-error step
+  reduces the influence of gross outliers such as a single mis-detected view.
+  Under soft weighting the outlier is down-weighted (Gaussian in reprojection
+  error) so the contributing set stays fixed; under the hard gate it is
+  discarded and the point re-triangulated.
+- Reprojection diagnostics. Per-view reprojection errors and reconstruction
+  confidence are tracked so weak points and cameras can be flagged.
 
-``soft_weighting=False``
-    Classical hard gate: views with confidence below the threshold are dropped
-    and the remaining views are triangulated with equal weight.
-
-In both schemes an optional reprojection-error step reduces the influence of
-gross outliers (e.g. a single mis-detected view). Under soft weighting the
-outlier is down-weighted (Gaussian in reprojection error) rather than removed,
-so the contributing set remains fixed; under the hard gate it is discarded and
-the point is re-triangulated.
-
-Coordinates are in the units of the calibration extrinsics (mm).
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 import json
