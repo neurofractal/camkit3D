@@ -1,13 +1,32 @@
-"""
-camkit3d.skeletons.definition – parsed skeleton descriptor.
+"""Parsed skeleton descriptor for CamKit3D.
 
 Defines :class:`PoseDefinition`, the in-memory representation of a skeleton
-descriptor YAML (see ``skeletons/data/*.yaml``). Handles parsing, validation
-and the derived lookups that the viewer / pose3d / analysis modules need.
+descriptor YAML (see ``skeletons/data/*.yaml``). This is the single source of
+truth for skeleton topology, so the recorder, pose2d, pose3d, viewer, and
+analysis modules all read landmark names, groups, and connections from one
+place rather than hard-coding them.
 
-You normally do not import this module directly — use
-``camkit3d.skeletons.load(...)`` instead, which returns a cached
+Key features:
+
+- One descriptor, many skeletons. A YAML file per skeleton (MediaPipe Pose,
+  MediaPipe Holistic, and so on) is parsed into a validated object, so
+  supporting a new skeleton means adding data, not code.
+- Strict validation. On construction it checks that landmark indices are
+  contiguous and that every group, connection, symmetry pair, and anatomy
+  anchor references a real landmark, catching malformed descriptors early.
+- Role-based lookups. Callers ask for semantic roles (face, hand, body) and
+  anatomy anchors (left_hip, and so on) rather than raw indices, so code
+  written against one skeleton keeps working when the group naming differs.
+- Derived accessors. Edges, per-edge colours, per-landmark confidence
+  thresholds, and colour-by-index are computed from the descriptor for the
+  drawing and triangulation stages.
+
+You normally do not import this module directly. Use
+``camkit3d.skeletons.load(...)`` instead, which returns a cached, validated
 :class:`PoseDefinition`.
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 from __future__ import annotations
@@ -248,8 +267,8 @@ class PoseDefinition:
         1. If the descriptor declares a ``roles`` block, union the groups it
            lists for this role.
         2. Otherwise fall back to name heuristics: a group whose name equals
-           the role, contains it (e.g. 'left_hand' for 'hand'), or — for
-           'face' — the 'face'/'pose_face' groups.
+           the role, contains it (e.g. 'left_hand' for 'hand'), or, for
+           'face', the 'face'/'pose_face' groups.
 
         This lets skeletons with different group naming (mediapipe_pose's
         'hand' vs mediapipe_holistic's 'left_hand'/'right_hand') answer the
@@ -319,7 +338,7 @@ class PoseDefinition:
         """
         thr = np.full(self.num_landmarks, default, dtype=float)
 
-        # Pass 1: broad groups (everything except face/hand) — stricter wins
+        # Pass 1: broad groups (everything except face/hand); stricter wins
         for name, g in self.groups.items():
             if name in ("face", "hand") or g.confidence_threshold is None:
                 continue
