@@ -1,14 +1,27 @@
-"""
-camkit3d.viewer – GPU-accelerated 3D pose viewer
+"""GPU-accelerated 3D pose viewer for CamKit3D.
 
-Generates a self-contained HTML file with Three.js and opens it in the
-default browser. Works identically from terminal scripts and Jupyter
-notebooks. No matplotlib dependency.
+Renders reconstructed 3D pose sequences as an interactive skeleton animation,
+with no matplotlib dependency.
 
-Usage
------
+Key features:
+
+- Self-contained output. Writes a single standalone HTML file with an
+  embedded Three.js (r160) scene and opens it in the default browser, so the
+  result is shareable and needs no server or Python runtime to replay.
+- Works everywhere. Behaves identically from terminal scripts and Jupyter
+  notebooks, with orbit/zoom controls, selectable initial views, and light or
+  dark backgrounds.
+- Skeleton-driven. Reads its topology from the skeleton descriptor
+  (MediaPipe Pose by default), so the same viewer draws any supported
+  skeleton without code changes.
+
+Usage:
+
     from camkit3d.viewer import viewer
     viewer(points_3d_aligned, fps=30, keypoint_size=70, line_width=8)
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 import json
@@ -209,7 +222,7 @@ def viewer(
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  HTML template — sidebar layout, Three.js r160 + OrbitControls via CDN
+#  HTML template: sidebar layout, Three.js r160 + OrbitControls via CDN
 # ════════════════════════════════════════════════════════════════════════════
 
 _HTML_TEMPLATE = r"""<!DOCTYPE html>

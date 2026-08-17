@@ -1,23 +1,42 @@
-"""
-CamKit3D Analysis Module
+"""3D pose analysis, visualisation, and animation for CamKit3D.
 
-Combined toolkit for analysing, visualising, and animating 3D pose data.
+A combined toolkit for inspecting reconstructed 3D pose data: checking
+reconstruction quality, aligning takes into a standard anatomical frame, and
+rendering static plots and animations.
 
-Functions
----------
-Analysis & static plots:
-  - plot_reprojection_errors      : reprojection-error timeseries + histogram
-  - detect_person_orientation     : auto-detect up / forward / right vectors
-  - get_optimal_camera_angles     : recommended camera angles per view
-  - visualize_orientation         : two-panel orientation check plot
-  - align_pose_to_standard_frame  : rotate data into anatomical frame
-  - plot_aligned_skeleton         : static 3D skeleton viewer (inline, no Qt)
+What's in here:
 
-Animation (video export):
-  - animate_3d_pose               : single-view animation with many options
+Setup:
+  set_skeleton                  Set the module-wide default skeleton topology.
 
-Author: CamKit3D (FreeMoCap-compatible workflow)
-Date: 2026-02-13
+Quality and orientation:
+  plot_reprojection_errors      Reprojection-error timeseries plus histogram.
+  detect_person_orientation     Auto-detect the up, forward, and right axes
+                                from the pose itself.
+  get_optimal_camera_angles     Recommend viewing angles for each named view.
+  visualize_orientation         Two-panel plot to sanity-check the detected
+                                orientation.
+
+Alignment:
+  align_pose_to_standard_frame  Rotate the data into the anatomical frame so
+                                downstream views are consistent.
+  interpolate_nans              Fill short NaN gaps (pchip, linear, or savgol)
+                                while leaving long dropouts untouched.
+
+Static plots:
+  plot_aligned_skeleton         Inline static 3D skeleton view (Agg, no Qt).
+
+Animation:
+  animate_3d_pose               Single-view animation with export options.
+  animate_3d_pose_multiangle    2x2 front/right/top/left animation.
+  interactive_pose_viewer       Interactive viewer with play/pause and
+                                timeline scrubbing.
+
+Private helpers (skeleton resolution, axis and floor drawing, bounds) are
+prefixed with an underscore.
+
+Author: Dr. Robert Seymour, OHBA, University of Oxford
+License: GNU General Public License v3, 2026
 """
 
 import math
@@ -149,7 +168,7 @@ def _compute_bounds(points_3d, padding=200):
 
 
 # ============================================================================
-# 1. REPROJECTION ERROR PLOTS
+# REPROJECTION ERROR PLOTS
 # ============================================================================
 
 def plot_reprojection_errors(
@@ -230,7 +249,7 @@ def plot_reprojection_errors(
 
 
 # ============================================================================
-# 2. AUTO-ORIENTATION DETECTION
+# AUTO-ORIENTATION DETECTION
 # ============================================================================
 
 def detect_person_orientation(points_3d, frame_range=None, skeleton=None):
@@ -342,6 +361,10 @@ def detect_person_orientation(points_3d, frame_range=None, skeleton=None):
     }
 
 
+# ============================================================================
+# OPTIMAL CAMERA ANGLES
+# ============================================================================
+
 def get_optimal_camera_angles(orientation_info):
     """
     Get optimal camera angles based on detected orientation.
@@ -375,7 +398,7 @@ def get_optimal_camera_angles(orientation_info):
 
 
 # ============================================================================
-# 3. VISUALIZE ORIENTATION (two-panel diagnostic plot)
+# VISUALIZE ORIENTATION (two-panel diagnostic plot)
 # ============================================================================
 
 def visualize_orientation(points_3d, orientation, camera_angles, output_path=None,
@@ -487,7 +510,7 @@ def visualize_orientation(points_3d, orientation, camera_angles, output_path=Non
 
 
 # ============================================================================
-# 4. ALIGN POSE TO STANDARD ANATOMICAL FRAME
+# ALIGN POSE TO STANDARD ANATOMICAL FRAME
 # ============================================================================
 
 def align_pose_to_standard_frame(points_3d, orientation=None):
@@ -535,7 +558,7 @@ def align_pose_to_standard_frame(points_3d, orientation=None):
 
 
 # ============================================================================
-# 5. PLOT ALIGNED SKELETON (inline-friendly, no Qt)
+# PLOT ALIGNED SKELETON (inline-friendly, no Qt)
 # ============================================================================
 
 def plot_aligned_skeleton(
@@ -646,7 +669,7 @@ def plot_aligned_skeleton(
 
 
 # ============================================================================
-# 6. ANIMATE 3D POSE (single view)
+# ANIMATE 3D POSE (single view)
 # ============================================================================
 
 def animate_3d_pose(
@@ -947,7 +970,7 @@ def animate_3d_pose_multiangle(
     return str(output_path)
 
 # ============================================================================
-# 9. Interactive Pose Viewer
+# INTERACTIVE POSE VIEWER
 # ============================================================================
 
 def interactive_pose_viewer(
@@ -966,7 +989,7 @@ def interactive_pose_viewer(
     free mouse-drag rotation.
 
     Requires a GUI backend (TkAgg or Qt5Agg). In a script, call this
-    *without* setting matplotlib.use('Agg') beforehand — it will pick the
+    *without* setting matplotlib.use('Agg') beforehand, so it picks the
     right backend automatically.  In Jupyter, run  %matplotlib tk  or
     %matplotlib qt  before calling.
 
@@ -982,7 +1005,7 @@ def interactive_pose_viewer(
     Parameters
     ----------
     points_3d : np.ndarray
-        (n_frames, 33, 3) — can be raw or pre-aligned. NaNs handled.
+        (n_frames, 33, 3), can be raw or pre-aligned. NaNs handled.
     fps : int
         Playback frame rate (default 30).
     keypoint_size : int
@@ -1003,7 +1026,7 @@ def interactive_pose_viewer(
     # Try to get an interactive backend
     _backend = matplotlib.get_backend().lower()
     if "agg" == _backend or "agg" in _backend and "tk" not in _backend and "qt" not in _backend:
-        # Pure Agg — try switching
+        # Pure Agg: try switching
         for candidate in ("TkAgg", "Qt5Agg", "QtAgg"):
             try:
                 matplotlib.use(candidate, force=True)
@@ -1038,7 +1061,7 @@ def interactive_pose_viewer(
     n_frames = data.shape[0]
     duration = n_frames / fps
 
-    # Bounds (1st–99th percentile + padding)
+    # Bounds (1st-99th percentile + padding)
     vf = data[~np.isnan(data)]
     pad = 200
     x_range = [np.percentile(vf[::3], 1) - pad, np.percentile(vf[::3], 99) + pad]
@@ -1061,7 +1084,7 @@ def interactive_pose_viewer(
     fig = plt.figure(figsize=figure_size, facecolor="white")
     fig.canvas.manager.set_window_title(window_title)
 
-    # Main 3D axes — leave room at bottom for controls
+    # Main 3D axes, leave room at bottom for controls
     ax = fig.add_axes([0.05, 0.15, 0.90, 0.80], projection="3d", facecolor="white")
 
     # Slider axes
@@ -1173,7 +1196,7 @@ def interactive_pose_viewer(
         draw_frame(frame_idx)
 
     def advance_frame():
-        """Timer callback — advance one frame."""
+        """Timer callback: advance one frame."""
         if not state["playing"]:
             return
         nxt = state["frame"] + 1
@@ -1241,7 +1264,7 @@ def interactive_pose_viewer(
     plt.show()
 
 # ============================================================================
-# Interpolate NaNs
+# INTERPOLATE NANS
 # ============================================================================
 
 def interpolate_nans(
@@ -1263,18 +1286,18 @@ def interpolate_nans(
 
     Methods
     -------
-    "pchip"  – Piecewise Cubic Hermite Interpolating Polynomial.
+    "pchip"   : Piecewise Cubic Hermite Interpolating Polynomial.
                Smooth C1 curve that passes through every data point and
                **never overshoots** between them.  Best default for mocap:
                preserves velocity continuity without the ringing artefacts
                of cubic spline.
 
-    "linear" – Straight-line interpolation between gap boundaries.
+    "linear"  : Straight-line interpolation between gap boundaries.
                Fastest, zero-parameter, and completely safe from overshoot.
-               Fine for 1–3 frame micro-gaps but produces visible kinks at
+               Fine for 1-3 frame micro-gaps but produces visible kinks at
                boundary frames for anything longer.
 
-    "savgol" – Linear interpolation followed by a Savitzky-Golay smoothing
+    "savgol"  : Linear interpolation followed by a Savitzky-Golay smoothing
                pass over the filled region ± a margin.  The SG filter fits
                a local polynomial (least-squares) so it softens the sharp
                transitions that linear interp creates, while keeping the
@@ -1292,7 +1315,7 @@ def interpolate_nans(
     max_gap_seconds : float
         Gaps longer than this (in seconds) are skipped. Default 1.0 s.
     fps : int
-        Frame rate — used to convert max_gap_seconds to frames.
+        Frame rate, used to convert max_gap_seconds to frames.
     savgol_window : int
         Window length for SG filter (odd integer, only used when method="savgol").
     savgol_polyorder : int
@@ -1342,7 +1365,7 @@ def interpolate_nans(
             if not is_nan.any():
                 continue
             if is_nan.all():
-                # Entirely NaN — nothing to interpolate
+                # Entirely NaN: nothing to interpolate
                 gaps_found += 1
                 gaps_skipped_boundary += 1
                 continue
@@ -1371,7 +1394,7 @@ def interpolate_nans(
                 gaps_found += 1
 
                 if gs == 0:
-                    # Leading gap — no left boundary
+                    # Leading gap: no left boundary
                     gaps_skipped_boundary += 1
                     continue
 
@@ -1464,7 +1487,7 @@ def interpolate_nans(
     return data, report
 
 # ============================================================================
-# CLI entry point
+# CLI ENTRY POINT
 # ============================================================================
 
 if __name__ == "__main__":
