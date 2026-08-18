@@ -1,5 +1,3 @@
-<div align="center">
-
 # camkit3D — End-to-End Pipeline
 
 ### *From raw webcam footage to a 3D motion-capture reconstruction, in eight steps*
