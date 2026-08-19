@@ -15,7 +15,7 @@ For detailed instructions see: [https://docs.freemocap.org/documentation/multi-c
 - Open FreeMoCap → point to the synchronised video files
 - Perform calibration → TOML file
 
-![gif](https://github.com/neurofractal/camkit3D/blob/d519385e82482212d9c6a3998b44e93b46f784bc/images/3D_calibration_small.gif)
+![gif](https://raw.githubusercontent.com/neurofractal/camkit3D/d519385e82482212d9c6a3998b44e93b46f784bc/images/3D_calibration_small.gif)
 
 !!! note "Recording a calibration video"
     It is vital you record a **high-quality calibration video**. Tips:
