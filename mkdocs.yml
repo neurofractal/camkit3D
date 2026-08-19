@@ -18,8 +18,8 @@ theme:
   palette:
     # Light mode
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
@@ -30,6 +30,9 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition                 # note/warning/tip callout boxes
@@ -56,10 +59,10 @@ nav:
       - "Stage 3 — 2D Pose": pipeline/pose2d.md
       - "Stage 4 — 3D Triangulation": pipeline/triangulation.md
       - "Stage 5 — Analysis & Animation": pipeline/analysis.md
+      - End-to-end Pipeline: tutorials/end-to-end.md
   - Tutorials:
       - Overview: tutorials/index.md
       - Missing Data: tutorials/missing_data.md
-      - End-to-end Walkthrough: tutorials/end-to-end.md
   - Other:
       - Batch Processing: batch-processing.md
       - Validation: validation.md
