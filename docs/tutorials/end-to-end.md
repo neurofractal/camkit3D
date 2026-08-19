@@ -10,8 +10,6 @@
 
 > *Image placeholder: a wide hero shot — the multi-camera grid beside the reconstructed 3D skeleton.*
 
-</div>
-
 ---
 
 ## Overview
@@ -500,5 +498,3 @@ print('Combined video:', result)
 ---
 
 *More docs & the full library:* [**github.com/neurofractal/camkit3D**](https://github.com/neurofractal/camkit3D)
-
-</div>
