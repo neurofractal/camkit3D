@@ -1,18 +1,12 @@
 # camkit3D — End-to-End Pipeline
 
-*From raw webcam footage to a 3D motion-capture reconstruction, in eight steps.*
-
 `Record` → `2D Pose` → `3D Triangulation` → `Align` → `Interpolate` → `View` → `Animate` → `Combine`
 
 <!-- ![Pipeline banner](./images/placeholder_banner.png) -->
 
-*A wide hero shot — the multi-camera grid beside the reconstructed 3D skeleton.*
-
 ## Overview
 
 This guide walks through the **complete camkit3D pipeline** end to end: recording synchronised multi-camera video, estimating 2D pose per view, triangulating to 3D, cleaning and interpolating the result, and rendering a combined video.
-
-Each section is self-contained — a short explainer, the code, and a space to drop in a figure from your own run.
 
 | Stage | What happens | Output |
 |:-----:|:-------------|:-------|
@@ -51,8 +45,6 @@ Each section is self-contained — a short explainer, the code, and a space to d
 ### Download & print a Charuco board
 
 ![Charuco board 5x3](https://raw.githubusercontent.com/neurofractal/camkit3D/main/docs/images/charuco_board_5x3.png)
-
-*A photo of your printed Charuco board on its mount.*
 
 - **Measure the size of one black square** — you'll need this for calibration.
 
