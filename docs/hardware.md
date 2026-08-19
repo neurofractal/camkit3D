@@ -1,18 +1,16 @@
 # Hardware
 
-# 3D Motion Capture — Camera Setup and Recording
-
 #### Webcam compatibility
 
 Any standard USB webcam should work with *camKit3D*, provided it can be accessed as a standard camera device by the computer. Higher-resolution and higher-frame-rate cameras can be used if required, although the default settings are optimised for standard webcams.
 
 #### Default camera settings
 
-camKit3D is configured by default for **30 frames per second (FPS)** at **HD 1280 × 720 resolution**. These settings provide a good balance between temporal resolution, spatial resolution, and computational/USB bandwidth.
+camKit3D is configured by default for **30 frames per second (FPS)** at **HD 1280 × 720 resolution**. These settings provide a good balance between temporal resolution, spatial resolution, and computational/USB bandwidth. When adding more cameras (3+) I have lowered this to 1024x576 with good results.
 
 #### Recommended webcam
 
-I have been using the **EMEET C960 1080P Webcam with Microphone**, which provides a **90° field of view** and supports 1080p video. [EMEET C960 1080P Webcam on Amazon UK](https://www.amazon.co.uk/dp/B07M6Y7355?th=1&utm_source=chatgpt.com)
+I have been using the **EMEET C960 1080P Webcam with Microphone**, which provides a **90° field of view** and supports 1080p video. [EMEET C960 1080P Webcam on Amazon UK](https://www.amazon.co.uk/dp/B07M6Y7355?th=1&utm_source=chatgpt.com). This is by no means the only webcam you can use and I will be activlely testing higher-spec models.
 
 <img src="images/webcam.png" alt="EMEET C960 webcam" style="height: 400px; width: auto;">
 
@@ -24,7 +22,7 @@ For whole-body 3D motion capture, cameras should be positioned so that the parti
 
 !!! tip "Tips"
 
-    - Multiple cameras require overlapping views of the participant to provide complementary observations of body landmarks. Arranging the webcams in a circular array is often the best way to achieve this.
+    - Multiple cameras require overlapping views of the participant to provide complementary observations of body landmarks. Arranging the webcams in a semi-circular array is often the best way to achieve this.
 
     - A good [YouTube video on camera placement (and markerless mocap in general)](https://youtu.be/GxKmyKdnTy0?si=CoV965Oi7OyM5Oar&t=788) can be found here.
 
