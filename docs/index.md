@@ -21,30 +21,31 @@ The code can be used as a stand-alone package or integrated alongside wearable b
 ## Getting Started
 #### - Buy webcams
 
-> Worth considering a **wide field of view** — essential for smaller rooms.
+Worth considering a **wide field of view** — essential for smaller rooms.
 
-### - Connect them to your computer
-> Plug them in, but **spread them across USB controllers**. Putting every camera onto one controller causes lots of dropped frames.
+#### - Connect them to your computer
+Plug them in, but **spread them across USB controllers**. Putting every camera onto one controller causes lots of dropped frames.
 
 #### - Install camkit3d
-> See [Installation](installation.md).
+See [Installation](installation.md).
 
 #### - Test the connection in camkit3D
-> See [**Stage 0**](tutorials/end-to-end.md) here.
-> Ask: Do they all connect? Any drop frames?
+See [**Stage 0**](tutorials/end-to-end.md) here.
+
+Ask: Do they all connect? Any drop frames?
 
 #### - Mount on steady tripods
-> Point the cameras at your participant **from multiple angles and heights**.
+Point the cameras at your participant **from multiple angles and heights**.
 
 #### - Download & print a Charuco board
-> [Charuco board 5x3](https://raw.githubusercontent.com/neurofractal/camkit3D/main/docs/images/charuco_board_5x3.png)
-> **Measure the size of one black square** — you'll need this for calibration.
+[Charuco board 5x3](https://raw.githubusercontent.com/neurofractal/camkit3D/main/docs/images/charuco_board_5x3.png)
+**Measure the size of one black square** — you'll need this for calibration.
 
 #### - Perform a calibration
-> Full guide: [camkit3D calibration docs](https://github.com/neurofractal/camkit3D/blob/main/docs/calibration.md)
+Full guide: [camkit3D calibration docs](https://github.com/neurofractal/camkit3D/blob/main/docs/calibration.md)
 
 #### - End-to-End Pipeline
-> Try to follow the [End-to-end Walkthrough](tutorials/end-to-end.md).
+Try to follow the [End-to-end Walkthrough](tutorials/end-to-end.md).
 
 ## What CamKit3D does
 
