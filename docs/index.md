@@ -14,7 +14,6 @@ The code can be used as a stand-alone package or integrated alongside wearable b
 
 ![gif](https://raw.githubusercontent.com/neurofractal/camkit3D/main/images/example_RS.gif)
 
-
 ---
 
 ## Getting Started

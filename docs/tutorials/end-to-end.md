@@ -4,22 +4,6 @@
 
 <!-- ![Pipeline banner](./images/placeholder_banner.png) -->
 
-## Overview
-
-This guide walks through the **complete camkit3D pipeline** end to end: recording synchronised multi-camera video, estimating 2D pose per view, triangulating to 3D, cleaning and interpolating the result, and rendering a combined video.
-
-| Stage | What happens | Output |
-|:-----:|:-------------|:-------|
-| **0** | Config & imports | Session parameters set |
-| **1** | Record & synchronise | Synced multi-camera video |
-| **2** | 2D pose estimation | Per-camera 2D keypoints |
-| **3** | 3D triangulation | 3D point cloud over time |
-| **4** | Align to body frame | Upright, person-centred pose |
-| **5** | Interpolate NaNs | Gap-filled trajectories |
-| **6** | Interactive viewer | Visual QC, pre/post fill |
-| **7** | Render animation | Front-view MP4 |
-| **8** | Combine videos | Cameras + 3D in one file |
-
 ## Initial setup
 
 > **Do this once**, before your first recording session.
@@ -63,13 +47,13 @@ python record_and_sync.py 90 --cameras 0 1 2 --countdown 10 --width 1024 --heigh
   --output-dir /Users/robertseymour/Documents/recordings
 ```
 
-Then run it through **FreeMoCap**:
+Run it through **FreeMoCap**:
 
-`Load recording → Process Data → Calibrate from Active Recording → Charuco Board 5x3 → Run calibration`
+`Load recording → Process Data → Calibrate from Active Recording → Charuco Board 5x3 → Run calibration → Copy camera_calibration.toml to your parent directory`
 
 ## Stage 0 · Config & imports
 
-Set your session parameters once here — every later stage reads from these. Flip `RECORD_NEW` to `False` to re-analyse an existing session instead of recording afresh.
+Flip `RECORD_NEW` to `False` to re-analyse an existing session instead of recording afresh.
 
 ```python
 import time, json, math
@@ -92,15 +76,15 @@ RECORD_SECONDS = 30
 
 RECORD_NEW = True   # False → reuse an existing SESSION_DIR below
 
-# If RECORD_NEW is False, set this to an existing session folder:
-SESSION_DIR = Path('/Users/robertseymour/Documents/recordings/2026-08-17_13-59-01')
+# # If RECORD_NEW is False, set this to an existing session folder:
+# SESSION_DIR = Path('/Users/robertseymour/Documents/recordings/2026-08-17_13-59-01')
 
 print('Config ready')
 ```
 
 ## Stage 1 · Record & synchronise
 
-Records **~30 s** from all cameras with a countdown, then resamples every camera onto one ideal FPS timeline so the frames line up across views.
+Records **~30 s** from all cameras with a countdown. Then resample every camera onto one ideal FPS timeline so the frames line up across views.
 
 ### Connect to the cameras
 
@@ -128,8 +112,6 @@ recorder.preview_cameras(duration=300.0, target_fps=30)
 ```
 
 ![Live camera preview](./images/placeholder_preview.png)
-
-*The multi-camera live preview window.*
 
 ### Record with a countdown
 
@@ -244,8 +226,6 @@ print('3D points:', points_3d.shape, '| mean reproj error:',
       f'{metrics.mean_reprojection_error:.2f}px')
 ```
 
-> **Tip:** `soft_conf_floor` only bites under soft weighting — views below the floor are dropped outright, and the survivors keep their continuous confidence weights.
-
 ## Stage 4 · Align to a body-centred frame
 
 Re-expresses the pose in **upright, person-facing, floor-referenced** coordinates, so downstream measures don't depend on where the cameras happened to sit.
@@ -260,7 +240,7 @@ print('Aligned:', points_3d_aligned.shape)
 
 ## Stage 5 · Interpolate NaNs
 
-**PCHIP** fill for bounded gaps — shape-preserving, with no overshoot. The plot below sanity-checks the fill against a real distance measure.
+**PCHIP** fill for bounded gaps. The plot below sanity-checks the interpolation.
 
 ```python
 points_3d_filled, report = interpolate_nans(
@@ -295,29 +275,14 @@ plt.grid(alpha=0.3); plt.legend(); plt.show()
 
 ## Stage 6 · Interactive viewer — before & after interpolation
 
-Opens the camkit3D viewer for a visual QC pass. Inspect the **pre-interpolation** data (gaps visible) and then the **filled** data.
+Opens the camkit3D viewer for a visual QC pass.
 
 > **Note:** requires an interactive backend. Switch to `%matplotlib qt` first — the inline backend won't show the live viewer.
-
-```python
-%matplotlib qt
-# Before interpolation (gaps visible)
-viewer(points_3d_aligned, fps=FPS)
-```
 
 ```python
 # After interpolation (gaps filled)
 viewer(points_3d_filled, fps=FPS)
 ```
-
-<table>
-<tr>
-<td align="center"><b>Before</b><br><img src="./images/placeholder_viewer_before.png" alt="Viewer before interpolation" width="360"/></td>
-<td align="center"><b>After</b><br><img src="./images/placeholder_viewer_after.png" alt="Viewer after interpolation" width="360"/></td>
-</tr>
-</table>
-
-*Two viewer screenshots side by side — gappy skeleton vs filled skeleton.*
 
 ## Stage 7 · Render the 3D animation
 
@@ -339,10 +304,6 @@ animate_3d_pose(
 )
 print('Animation saved')
 ```
-
-![3D animation still](./images/placeholder_animation.png)
-
-*A still frame of the rendered 3D skeleton animation.*
 
 ## Stage 8 · Combine camera videos with the 3D animation
 
@@ -451,13 +412,5 @@ def combine_cameras_and_front_view(
 result = combine_cameras_and_front_view(SESSION_DIR)
 print('Combined video:', result)
 ```
-
-![Combined output](./images/placeholder_combined.png)
-
-*A frame from the final combined MP4 — camera grid left, 3D skeleton right.*
-
-## That's the whole pipeline
-
-**Record → Reconstruct → Render**, all in one pass.
 
 More docs & the full library: [github.com/neurofractal/camkit3D](https://github.com/neurofractal/camkit3D)
