@@ -1,12 +1,13 @@
 # Installation
 
-! COMING SOON !
+!!! warning "To Follow"
+    Rob needs to add this package to pip when he is happy with everything.
 
 ```bash
 pip install camkit3d
 ```
 
-Or install from source in editable mode (recommended for development):
+Or install from source in editable mode:
 
 ```bash
 git clone https://github.com/neurofractal/camkit3D

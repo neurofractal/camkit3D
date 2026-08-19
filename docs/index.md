@@ -19,11 +19,32 @@ The code can be used as a stand-alone package or integrated alongside wearable b
 ---
 
 ## Getting Started
+#### - Buy webcams
 
-- Start with [Installation](installation.md).
-- A background on [Hardware](hardware.md)
-- 2D-to-3D [Calibration](tutorials/calibration.md).
-- Want to run the whole thing end-to-end? See the [End-to-end Walkthrough](tutorials/end-to-end.md).
+> Worth considering a **wide field of view** — essential for smaller rooms.
+
+### - Connect them to your computer
+> Plug them in, but **spread them across USB controllers**. Putting every camera onto one controller causes lots of dropped frames.
+
+#### - Install camkit3d
+> See [Installation](installation.md).
+
+#### - Test the connection in camkit3D
+> See [**Stage 0**](tutorials/end-to-end.md) here.
+> Ask: Do they all connect? Any drop frames?
+
+#### - Mount on steady tripods
+> Point the cameras at your participant **from multiple angles and heights**.
+
+#### - Download & print a Charuco board
+> [Charuco board 5x3](https://raw.githubusercontent.com/neurofractal/camkit3D/main/docs/images/charuco_board_5x3.png)
+> **Measure the size of one black square** — you'll need this for calibration.
+
+#### - Perform a calibration
+> Full guide: [camkit3D calibration docs](https://github.com/neurofractal/camkit3D/blob/main/docs/calibration.md)
+
+#### - End-to-End Pipeline
+> Try to follow the [End-to-end Walkthrough](tutorials/end-to-end.md).
 
 ## What CamKit3D does
 
@@ -43,10 +64,11 @@ The pipeline is organised as five sequential stages, but you can also use the sc
 - [Anipose](https://anipose.readthedocs.io/) for triangulation methodology
 - [FreeMoCap](https://freemocap.org/) for calibration format and inspiration
 
+We also acknowledge Dr. Patricia Cambalova and Dr. Seb Rieger who have provided invaludable experimental support in the Oxford OPM lab.
+
 ## Citation
 
 Seymour, R. A., Hill, R., Brookes, M. J., & Woolrich, M. W. (in preparation). *Markerless 3D Motion Capture for Wearable OPM-MEG*.
 
 ## License
-
 GNU v3.0 — see [LICENSE](https://github.com/neurofractal/camkit3D/blob/main/LICENSE) for details.

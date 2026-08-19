@@ -12,6 +12,9 @@ camKit3D is configured by default for **30 frames per second (FPS)** at **HD 128
 
 I have been using the **EMEET C960 1080P Webcam with Microphone**, which provides a **90° field of view** and supports 1080p video. [EMEET C960 1080P Webcam on Amazon UK](https://www.amazon.co.uk/dp/B07M6Y7355?th=1&utm_source=chatgpt.com). This is by no means the only webcam you can use and I will be activlely testing higher-spec models.
 
+![webcam](https://github.com/neurofractal/camkit3D/blob/main/docs/images/webcam.png){ width="200" }
+
+
 <img src="images/webcam.png" alt="EMEET C960 webcam" style="height: 400px; width: auto;">
 
 *EMEET C960 1080P*

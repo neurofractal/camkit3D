@@ -32,7 +32,7 @@ from camkit3d.pose2d import (
 
 data_2d = "recordings/trial_001/mediapipe_output/data_2d"
 
-# 1. Butterworth low-pass on x, y — removes jitter before triangulation amplifies it
+# 1. Butterworth low-pass on x, y, z — removes jitter before triangulation amplifies it
 smooth_keypoints_directory(data_2d, cutoff_freq=4.0, sampling_freq=30.0)
 
 # 2. Drop hips and below (NaN) — keeps face, shoulders, arms, hands
