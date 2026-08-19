@@ -12,14 +12,13 @@ CamKit3D turns a set of USB webcams into a markerless motion-capture system. It 
 
 The code can be used as a stand-alone package or integrated alongside wearable brain imaging.
 
-<p align="center">
-  <img src="https://github.com/neurofractal/camkit3D/blob/main/images/example_RS.gif" width="800">
-</p>
+![gif](https://raw.githubusercontent.com/neurofractal/camkit3D/main/docs/images/example_RS.gif)
+
 
 ---
 
 ## Getting Started
-**- Buy webcams**. Worth considering a **wide field of view** — essential for smaller rooms.
+**- Buy webcams**. Worth considering a wide field of view — essential for smaller rooms.
 
 **- Connect them to your computer**. Plug them in, but spread them across USB controllers. Putting every camera onto one controller causes lots of dropped frames.
 
