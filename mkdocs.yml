@@ -36,6 +36,7 @@ extra_css:
 
 markdown_extensions:
   - admonition                 # note/warning/tip callout boxes
+  - attr_list
   - pymdownx.details
   - pymdownx.superfences        # nested + better code fences
   - pymdownx.highlight:
