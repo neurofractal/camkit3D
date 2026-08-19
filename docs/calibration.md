@@ -2,8 +2,7 @@
 
 3D camera calibration is handled externally to CamKit3D. We recommend Freemocap which provides an accessible GUI-like worlflow to calibration, relying on the well-validated [anipose python package](https://github.com/lambdaloop/anipose). The basic idea is to record synchronised videos using a known Charuco board:
 
-![5x3 ChArUco board](images/charuco_board_5x3.png){ width="400" }
-
+![5x3 ChArUco board](https://raw.githubusercontent.com/neurofractal/camkit3D/main/docs/images/charuco_board_5x3.png){ width="400" }
 * Example CHARUCO Board *
 
 ### Freemocap
