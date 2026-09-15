@@ -63,9 +63,25 @@ points_3d_filled, report = interpolate_nans(
 
 ## Interactive viewers
 
-Two interactive viewers are available for exploratory inspection.
+Three interactive viewers are available for data inspection. 
 
-**Browser viewer.** from `camkit3d.viewer`. Written in html.
+**Data Viewer.** from `camkit3d.data_viewer`. Written in html.
+
+```python
+from camkit3d.data_viewer import data_viewer
+data_viewer(all_data, fps=30) # all_data is (n_trials, frames, 33, 3) array
+```
+
+Or from terminal:
+```bash
+python -m camkit3d.data_viewer path_to_folder
+```
+
+![](../images/dataviewer.png)
+
+data_viewer can load either raw data, individual datasets (single folder) or a folders of many datasets (many folders).
+
+**Pose Viewer.** from `camkit3d.viewer`. Written in html.
 
 ```python
 from camkit3d.viewer import viewer
@@ -73,7 +89,7 @@ viewer(points_3d_filled, fps=30, output_path="pose_viewer.html")
 ```
 ![](../images/viewer.png)
 
-**Matplotlib viewer.** `interactive_pose_viewer(...)` from `camkit3d.analysis`.
+**Matplotlib Viewer.** `interactive_pose_viewer(...)` from `camkit3d.analysis`.
 
 ```python
 from camkit3d.analysis import interactive_pose_viewer
