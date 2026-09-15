@@ -60,10 +60,8 @@ nav:
       - "Stage 3 — 2D Pose": pipeline/pose2d.md
       - "Stage 4 — 3D Triangulation": pipeline/triangulation.md
       - "Stage 5 — Analysis & Animation": pipeline/analysis.md
-      - End-to-end Pipeline: tutorials/end-to-end.md
-  - Tutorials:
-      - Overview: tutorials/index.md
-      - Missing Data: tutorials/missing_data.md
+      - End-to-End Pipeline: tutorials/end-to-end.md
   - Other:
+      - Missing Data: tutorials/missing_data.md
       - Batch Processing: batch-processing.md
       - Validation: validation.md
