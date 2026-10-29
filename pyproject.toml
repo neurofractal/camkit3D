@@ -7,7 +7,7 @@ name = "camkit3d"
 version = "0.1.0"
 description = "Multi-camera 3D pose estimation pipeline for biomechanical and social interaction research."
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "GPL-3.0-only"}
 requires-python = ">=3.9"
 authors = [
     {name = "Rob Seymour", email = "rob.seymour@psych.ox.ac.uk"},
@@ -24,7 +24,7 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
