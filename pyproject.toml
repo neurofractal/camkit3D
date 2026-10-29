@@ -65,6 +65,11 @@ Issues = "https://github.com/your-repo/camkit3d/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Ship the skeleton descriptor YAMLs inside the wheel. Without this they are
+# left out of the build and camkit3d.skeletons.load() fails after pip install.
+"camkit3d.skeletons" = ["data/*.yaml", "data/*.yml"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py39"
