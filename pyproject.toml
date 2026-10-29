@@ -57,10 +57,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-repo/camkit3d"
-Documentation = "https://github.com/your-repo/camkit3d#readme"
-Repository = "https://github.com/your-repo/camkit3d"
-Issues = "https://github.com/your-repo/camkit3d/issues"
+Homepage = "https://github.com/neurofractal/camkit3d"
+Documentation = "https://github.com/neurofractal/camkit3d#readme"
+Repository = "https://github.com/neurofractal/camkit3d"
+Issues = "https://github.com/neurofractal/camkit3d/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
