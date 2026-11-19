@@ -1,8 +1,10 @@
 ## Interactive viewers
 
-Three interactive viewers are available for data inspection. 
+Three interactive viewers are available for data inspection.
 
-**Data Viewer.** from `camkit3d.data_viewer`. Written in html.
+### Data Viewer
+
+From `camkit3d.data_viewer`. Written in html.
 
 ```python
 from camkit3d.data_viewer import data_viewer
@@ -13,8 +15,6 @@ Or from terminal:
 ```bash
 python -m camkit3d.data_viewer path_to_folder
 ```
-
-![](images/dataviewer.png)
 
 data_viewer can load either raw data, individual datasets (single folder) or a folders of many datasets (many folders).
 
@@ -28,15 +28,20 @@ data_viewer can load either raw data, individual datasets (single folder) or a f
   </iframe>
 </div>
 
-**Pose Viewer.** from `camkit3d.viewer`. Written in html.
+### Pose Viewer
+
+From `camkit3d.viewer`. Written in html.
 
 ```python
 from camkit3d.viewer import viewer
 viewer(points_3d_filled, fps=30, output_path="pose_viewer.html")
 ```
+
 ![](images/viewer.png)
 
-**Matplotlib Viewer.** `interactive_pose_viewer(...)` from `camkit3d.analysis`.
+### Matplotlib Viewer
+
+`interactive_pose_viewer(...)` from `camkit3d.analysis`.
 
 ```python
 from camkit3d.analysis import interactive_pose_viewer
