@@ -62,6 +62,7 @@ nav:
       - End-to-End Pipeline: tutorials/end-to-end.md
 
   - Other:
+      - Data Organisation: data_organisation.md
       - Skeletons: skeletons.md
       - Data Viewer: dataviewer.md
       - Missing Data: tutorials/missing_data.md
