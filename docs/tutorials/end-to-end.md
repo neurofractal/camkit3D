@@ -1,6 +1,6 @@
 # camkit3D — End-to-End Pipeline
 
-`Record` → `2D Pose` → `3D Triangulation` → `Align` → `Interpolate` → `View` → `Animate` → `Combine`
+`Record` → `Synchronise`→ `2D Pose` → `3D Triangulation` → `Align` → `Interpolate` → `View` → `Animate` → `Combine`
 
 <!-- ![Pipeline banner](./images/placeholder_banner.png) -->
 
@@ -14,7 +14,7 @@
 
 ### Connect them to your computer
 
-- Plug them in, but **spread them across USB controllers**. Piling every camera onto one controller causes lots of dropped frames.
+- Plug them in, but **spread them across USB controllers**. Putting every camera onto one controller causes lots of dropped frames. Rob has got better results working with Macs than with Windows PCs.
 
 ### Test the connection in camkit3D
 
@@ -24,7 +24,7 @@
 ### Mount on steady tripods
 
 - Point the cameras at your participant **from multiple angles and heights**.
-- Avoid anything too perpendicular or at very acute angles — those views triangulate poorly.
+- Avoid anything too perpendicular or at very acute angles which will lead to poor triangulation.
 
 ### Download & print a Charuco board
 
@@ -36,7 +36,7 @@
 
 Full guide: [camkit3D calibration docs](https://github.com/neurofractal/camkit3D/blob/main/docs/calibration.md)
 
-- Wave the Charuco board around **slowly**, rotating through angles so **every camera** gets full coverage.
+- Move the Charuco board around **slowly**, rotating through angles so **every camera** gets full coverage.
 - Don't get too close to any single camera — focus on the volume where your participant will actually be.
 
 > **Handy terminal code** — record for 90 s, then immediately synchronise the frames:
@@ -53,7 +53,7 @@ Run it through **FreeMoCap**:
 
 ## Stage 0 · Config & imports
 
-Flip `RECORD_NEW` to `False` to re-analyse an existing session instead of recording afresh.
+Set `RECORD_NEW` to `False` to re-analyse an existing session instead of recording afresh.
 
 ```python
 import time, json, math
@@ -111,7 +111,7 @@ Use the live preview to check framing, lighting, and that everyone is fully in s
 recorder.preview_cameras(duration=300.0, target_fps=30)
 ```
 
-![Live camera preview](./images/placeholder_preview.png)
+![Live camera preview](../images/placeholder_preview.png)
 
 ### Record with a countdown
 
@@ -133,7 +133,7 @@ if RECORD_NEW:
     recorder.disconnect_cameras()
 ```
 
-### Synchronise to an ideal FPS
+### Synchronise to an ideal FPS (30 FPS)
 
 ```python
 if RECORD_NEW:
@@ -185,7 +185,7 @@ clean_face_points_directory(input_dir=data_2d_dir, frame_width=1920, frame_heigh
 print('2D keypoints cleaned')
 ```
 
-![2D pose overlay](./images/placeholder_pose2d.png)
+![2D pose overlay](../images/placeholder_pose2d.png)
 
 *A labelled frame showing the MediaPipe skeleton drawn over one camera view.*
 
@@ -269,7 +269,7 @@ plt.title('Left shoulder → left wrist (before/after interpolation)')
 plt.grid(alpha=0.3); plt.legend(); plt.show()
 ```
 
-![Interpolation comparison plot](./images/placeholder_interpolation.png)
+![Interpolation comparison plot](../images/placeholder_interpolation.png)
 
 *The shoulder→wrist distance plot, black (original) vs red (filled).*
 
