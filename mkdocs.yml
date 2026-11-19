@@ -51,8 +51,7 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Hardware: hardware.md
-  - Skeletons: skeletons.md
-  - 3D Calibration Guide: calibration.md
+  - 3D Calibration: calibration.md
   - Pipeline:
       - Overview: pipeline/index.md
       - "Stage 1 — Recording": pipeline/recording.md
@@ -61,7 +60,10 @@ nav:
       - "Stage 4 — 3D Triangulation": pipeline/triangulation.md
       - "Stage 5 — Analysis & Animation": pipeline/analysis.md
       - End-to-End Pipeline: tutorials/end-to-end.md
+
   - Other:
+      - Skeletons: skeletons.md
+      - Data Viewer: dataviewer.md
       - Missing Data: tutorials/missing_data.md
       - Batch Processing: batch-processing.md
       - Validation: validation.md
