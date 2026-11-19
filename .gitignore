@@ -2,6 +2,11 @@
 __pycache__/
 *.pyc
 
+# Build artifacts / generated packaging metadata
+build/
+dist/
+*.egg-info/
+
 # Virtual environments
 venv/
 .env/
